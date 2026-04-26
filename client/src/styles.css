@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  background: #061018;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Manrope, ui-sans-serif, system-ui;
+  color: #eef8ff;
+  background:
+    radial-gradient(circle at top left, rgba(255, 122, 69, 0.18), transparent 32rem),
+    radial-gradient(circle at 70% 5%, rgba(110, 243, 197, 0.15), transparent 34rem),
+    linear-gradient(135deg, #061018 0%, #0b1722 45%, #101821 100%);
+}
+
+.glass {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035));
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(18px);
+}
+
+.app-shell {
+  width: min(100%, 1480px);
+}
+
+.dashboard-main {
+  min-width: 0;
+}
+
+.field {
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(6, 16, 24, 0.72);
+  padding: 0.85rem 1rem;
+  color: #f5fbff;
+  outline: none;
+}
+
+.field:focus {
+  border-color: rgba(110, 243, 197, 0.7);
+  box-shadow: 0 0 0 3px rgba(110, 243, 197, 0.12);
+}
+
+.btn-primary {
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6ef3c5, #ff7a45);
+  color: #061018;
+  font-weight: 800;
+  padding: 0.85rem 1.25rem;
+}
+
+.btn-muted {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eaf7ff;
+  font-weight: 700;
+  padding: 0.85rem 1.25rem;
+}

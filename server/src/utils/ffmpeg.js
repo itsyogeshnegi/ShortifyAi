@@ -1,8 +1,7 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 
-const execFileAsync = promisify(execFile);
+const STDERR_TAIL_LIMIT = 20 * 1024;
 
 export function getFfmpegPath() {
   if (process.env.FFMPEG_PATH && process.env.FFMPEG_PATH !== 'ffmpeg') {
@@ -20,11 +19,63 @@ function isBlockedFfmpeg(error) {
   return error?.code === 'EPERM' || /spawn .*ffmpeg.*EPERM/i.test(error?.message || '');
 }
 
+function appendTail(current, chunk) {
+  const next = current + chunk.toString();
+  return next.length > STDERR_TAIL_LIMIT ? next.slice(next.length - STDERR_TAIL_LIMIT) : next;
+}
+
 export async function runFfmpeg(args, options = {}) {
   try {
-    return await execFileAsync(getFfmpegPath(), args, {
-      windowsHide: true,
-      timeout: options.timeout || 180000
+    const ffmpegArgs = ['-hide_banner', '-loglevel', 'error', '-nostats', ...args];
+
+    return await new Promise((resolve, reject) => {
+      let stderrTail = '';
+      let stdoutTail = '';
+      let settled = false;
+      const child = spawn(getFfmpegPath(), ffmpegArgs, { windowsHide: true });
+      const timeoutMs = options.timeout || 180000;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        child.kill('SIGKILL');
+        const error = new Error(`FFmpeg timed out after ${timeoutMs}ms.${stderrTail ? `\n${stderrTail}` : ''}`);
+        error.code = 'ETIMEDOUT';
+        reject(error);
+      }, timeoutMs);
+
+      child.stdout?.on('data', (chunk) => {
+        stdoutTail = appendTail(stdoutTail, chunk);
+      });
+
+      child.stderr?.on('data', (chunk) => {
+        stderrTail = appendTail(stderrTail, chunk);
+      });
+
+      child.on('error', (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      });
+
+      child.on('close', (code, signal) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+
+        if (code === 0) {
+          resolve({ stdout: stdoutTail, stderr: stderrTail });
+          return;
+        }
+
+        const details = stderrTail || stdoutTail;
+        const error = new Error(`FFmpeg failed${signal ? ` with signal ${signal}` : ` with exit code ${code}`}.${details ? `\n${details}` : ''}`);
+        error.code = code;
+        error.signal = signal;
+        error.stderr = stderrTail;
+        error.stdout = stdoutTail;
+        reject(error);
+      });
     });
   } catch (error) {
     if (isMissingFfmpeg(error)) {

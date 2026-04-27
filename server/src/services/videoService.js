@@ -105,14 +105,30 @@ export async function generateShortVideo({ title, scriptText, duration, audioPat
   const args = [
     ...sourceArgs,
     ...filterArgs,
-        '-c:v',
-        'libx264',
-        '-c:a',
-        'aac',
-        '-shortest',
-        '-pix_fmt',
-        'yuv420p',
-        outputPath
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    '-crf',
+    '23',
+    '-maxrate',
+    '8M',
+    '-bufsize',
+    '16M',
+    '-r',
+    '30',
+    '-c:a',
+    'aac',
+    '-ar',
+    '44100',
+    '-b:a',
+    '128k',
+    '-shortest',
+    '-pix_fmt',
+    'yuv420p',
+    '-movflags',
+    '+faststart',
+    outputPath
   ];
 
   await runFfmpeg(args, { timeout: 180000 });

@@ -4,8 +4,16 @@ import path from 'path';
 import axios from 'axios';
 import { storageDirs } from '../utils/storage.js';
 
-const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.upload';
+const YOUTUBE_SCOPES = [
+  'https://www.googleapis.com/auth/youtube.upload',
+  'https://www.googleapis.com/auth/youtube.readonly'
+];
 const tokenPath = path.join(storageDirs.tokens, 'youtube-token.json');
+
+function tokenHasRequiredScopes(token) {
+  const scopeText = String(token?.scope || '');
+  return YOUTUBE_SCOPES.every((scope) => scopeText.includes(scope));
+}
 
 function getOAuthConfig() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -38,6 +46,8 @@ export async function getYoutubeConnectionStatus() {
   const token = await readToken();
   return {
     connected: Boolean(token?.refresh_token),
+    hasRequiredScopes: tokenHasRequiredScopes(token),
+    reconnectRequired: Boolean(token?.refresh_token) && !tokenHasRequiredScopes(token),
     hasClientConfig: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
   };
 }
@@ -58,7 +68,7 @@ export function createYoutubeAuthUrl() {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: YOUTUBE_SCOPE,
+    scope: YOUTUBE_SCOPES.join(' '),
     access_type: 'offline',
     prompt: 'consent'
   });
@@ -124,10 +134,58 @@ function normalizeTags(tags) {
     .slice(0, 20);
 }
 
+function normalizeYoutubeStatus(video) {
+  const processingDetails = video?.processingDetails || {};
+  const suggestions = video?.suggestions || {};
+  return {
+    videoId: video?.id,
+    watchUrl: video?.id ? `https://www.youtube.com/watch?v=${video.id}` : undefined,
+    uploadStatus: video?.status?.uploadStatus,
+    processingStatus: processingDetails.processingStatus,
+    processingFailureReason: processingDetails.processingFailureReason,
+    processingWarnings: [
+      ...(suggestions.processingErrors || []),
+      ...(suggestions.processingWarnings || []),
+      ...(suggestions.processingHints || [])
+    ].filter(Boolean),
+    privacyStatus: video?.status?.privacyStatus,
+    scheduledPublishAt: video?.status?.publishAt ? new Date(video.status.publishAt) : undefined,
+    lastCheckedAt: new Date()
+  };
+}
+
+export async function fetchYoutubeVideoStatus(videoId) {
+  if (!videoId) {
+    const error = new Error('YouTube video ID is required to check processing status.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const accessToken = await getAccessToken();
+  const { data } = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+    params: {
+      part: 'status,processingDetails,suggestions,contentDetails,snippet',
+      id: videoId
+    },
+    headers: { Authorization: `Bearer ${accessToken}` },
+    timeout: 30000
+  });
+
+  const video = data.items?.[0];
+  if (!video) {
+    const error = new Error('YouTube video was not found for this connected channel.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return normalizeYoutubeStatus(video);
+}
+
 export async function uploadVideoToYoutube({ videoPath, thumbnailPath, metadata }) {
   const accessToken = await getAccessToken();
   const stat = await fsp.stat(videoPath);
-  const publishAt = metadata.publishAt ? new Date(metadata.publishAt) : null;
+  const requestedPublishAt = metadata.publishAt ? new Date(metadata.publishAt) : null;
+  const publishAt = requestedPublishAt && requestedPublishAt.getTime() > Date.now() ? requestedPublishAt : null;
   const privacyStatus = publishAt ? 'private' : metadata.privacyStatus || process.env.YOUTUBE_DEFAULT_PRIVACY || 'private';
   const body = {
     snippet: {
@@ -199,6 +257,7 @@ export async function uploadVideoToYoutube({ videoPath, thumbnailPath, metadata 
     videoId,
     watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
     privacyStatus,
-    scheduledPublishAt: publishAt
+    scheduledPublishAt: publishAt,
+    youtubeStatus: await fetchYoutubeVideoStatus(videoId).catch(() => null)
   };
 }

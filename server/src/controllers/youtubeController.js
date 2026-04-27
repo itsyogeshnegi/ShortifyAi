@@ -7,6 +7,7 @@ import { generateYoutubeMetadataWithOllama } from '../services/ollamaService.js'
 import {
   assertYoutubeReady,
   createYoutubeAuthUrl,
+  fetchYoutubeVideoStatus,
   getYoutubeConnectionStatus,
   handleYoutubeCallback,
   uploadVideoToYoutube
@@ -32,6 +33,69 @@ function normalizeYoutubeMetadata({ title, description, tags }) {
   };
 }
 
+function isFutureDate(date) {
+  return date instanceof Date && !Number.isNaN(date.getTime()) && date.getTime() > Date.now();
+}
+
+function applyYoutubeRemoteStatus(project, remoteStatus) {
+  if (!remoteStatus) return;
+
+  const hasYoutubeFailure = ['deleted', 'failed', 'rejected'].includes(remoteStatus.uploadStatus)
+    || remoteStatus.processingStatus === 'failed';
+  const nextStatus = hasYoutubeFailure
+    ? 'failed'
+    : remoteStatus.scheduledPublishAt && remoteStatus.scheduledPublishAt.getTime() > Date.now()
+      ? 'scheduled'
+      : 'uploaded';
+
+  project.youtube = {
+    ...project.youtube,
+    status: nextStatus,
+    videoId: remoteStatus.videoId || project.youtube?.videoId,
+    watchUrl: remoteStatus.watchUrl || project.youtube?.watchUrl,
+    uploadStatus: remoteStatus.uploadStatus,
+    processingStatus: remoteStatus.processingStatus,
+    processingFailureReason: remoteStatus.processingFailureReason,
+    processingWarnings: remoteStatus.processingWarnings || [],
+    privacyStatus: remoteStatus.privacyStatus || project.youtube?.privacyStatus,
+    scheduledPublishAt: remoteStatus.scheduledPublishAt || project.youtube?.scheduledPublishAt,
+    youtubeAcceptedAt: project.youtube?.youtubeAcceptedAt || (remoteStatus.videoId ? new Date() : undefined),
+    lastCheckedAt: remoteStatus.lastCheckedAt,
+    lastProcessingCheckAt: remoteStatus.lastCheckedAt,
+    errorMessage: hasYoutubeFailure
+      ? `YouTube processing failed${remoteStatus.processingFailureReason ? `: ${remoteStatus.processingFailureReason}` : remoteStatus.uploadStatus ? `: ${remoteStatus.uploadStatus}` : '.'}`
+      : ''
+  };
+}
+
+async function refreshProjectYoutubeStatus({ projectId, userId }) {
+  const project = await Project.findOne({ _id: projectId, user: userId });
+  const videoId = project?.youtube?.videoId;
+  if (!project || !videoId || ['failed'].includes(project.youtube?.status)) return null;
+
+  const remoteStatus = await fetchYoutubeVideoStatus(videoId);
+  applyYoutubeRemoteStatus(project, remoteStatus);
+  await project.save();
+  return project;
+}
+
+function scheduleYoutubeProcessingChecks({ projectId, userId }) {
+  const delays = [30_000, 2 * 60_000, 5 * 60_000, 10 * 60_000, 20 * 60_000];
+
+  for (const delay of delays) {
+    setTimeout(async () => {
+      try {
+        const project = await refreshProjectYoutubeStatus({ projectId, userId });
+        if (project?.youtube?.processingStatus === 'succeeded' || project?.youtube?.status === 'failed') {
+          return;
+        }
+      } catch (error) {
+        console.warn(`YouTube processing recheck skipped for project ${projectId}: ${getYoutubeErrorMessage(error)}`);
+      }
+    }, delay);
+  }
+}
+
 async function runYoutubeUpload({ projectId, userId, videoPath, thumbnailPath, metadata }) {
   const project = await Project.findOne({ _id: projectId, user: userId });
   if (!project) return;
@@ -47,9 +111,12 @@ async function runYoutubeUpload({ projectId, userId, videoPath, thumbnailPath, m
       privacyStatus: uploaded.privacyStatus,
       scheduledPublishAt: uploaded.scheduledPublishAt || undefined,
       uploadedAt: new Date(),
+      youtubeAcceptedAt: new Date(),
       errorMessage: ''
     };
+    applyYoutubeRemoteStatus(project, uploaded.youtubeStatus);
     await project.save();
+    scheduleYoutubeProcessingChecks({ projectId, userId });
   } catch (error) {
     project.youtube = {
       ...project.youtube,
@@ -135,7 +202,8 @@ export const upload = asyncHandler(async (req, res) => {
   await fs.access(videoPath);
   await assertYoutubeReady();
 
-  const publishAt = req.body.publishAt ? new Date(req.body.publishAt) : null;
+  const requestedPublishAt = req.body.publishAt ? new Date(req.body.publishAt) : null;
+  const publishAt = isFutureDate(requestedPublishAt) ? requestedPublishAt : null;
   const tags = Array.isArray(req.body.tags)
     ? req.body.tags
     : String(req.body.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean);
@@ -153,6 +221,14 @@ export const upload = asyncHandler(async (req, res) => {
     tags: metadata.tags,
     privacyStatus: publishAt ? 'private' : req.body.privacyStatus || 'private',
     scheduledPublishAt: publishAt || undefined,
+    uploadStartedAt: new Date(),
+    youtubeAcceptedAt: undefined,
+    lastProcessingCheckAt: undefined,
+    uploadStatus: 'accepted_by_app',
+    processingStatus: '',
+    processingFailureReason: '',
+    processingWarnings: [],
+    lastCheckedAt: undefined,
     errorMessage: ''
   };
   await project.save();
@@ -174,4 +250,34 @@ export const upload = asyncHandler(async (req, res) => {
   });
 
   res.status(202).json(project);
+});
+
+export const refreshYoutubeStatus = asyncHandler(async (req, res) => {
+  const project = await Project.findOne({ _id: req.params.projectId, user: req.user._id });
+  if (!project || project.status !== 'completed') {
+    const error = new Error('Completed short not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const requestedVideoId = String(req.body?.videoId || '').trim();
+  const videoId = project.youtube?.videoId || requestedVideoId;
+  if (!videoId) {
+    const error = new Error('Paste the YouTube video ID or URL once so ShortifyAI can track this upload.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const cleanVideoId = videoId.includes('youtube.com')
+    ? new URL(videoId).searchParams.get('v')
+    : videoId.includes('youtu.be/')
+      ? videoId.split('youtu.be/')[1]?.split(/[?&]/)[0]
+      : videoId;
+
+  await assertYoutubeReady();
+  const remoteStatus = await fetchYoutubeVideoStatus(cleanVideoId);
+  applyYoutubeRemoteStatus(project, remoteStatus);
+  await project.save();
+
+  res.json(project);
 });

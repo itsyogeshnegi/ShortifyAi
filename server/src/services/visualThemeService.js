@@ -1,3 +1,5 @@
+import { resolveThemeTemplate } from './themeTemplateService.js';
+
 function includesAny(value, terms) {
   const text = String(value || '').toLowerCase();
   return terms.some((term) => text.includes(term));
@@ -12,7 +14,20 @@ function escapeDrawtext(value) {
     .slice(0, 42);
 }
 
-function paletteFor({ topic, niche, tone }) {
+function paletteFor(input) {
+  const { topic, niche, tone } = input;
+  const template = resolveThemeTemplate(input.themeTemplate, niche);
+
+  if (input.themeTemplate) {
+    return {
+      base: template.palette.base,
+      accent: template.palette.accent,
+      accent2: template.palette.accent2,
+      glow: template.palette.glow,
+      keywords: template.keywords
+    };
+  }
+
   const luxury = includesAny(tone, ['luxury', 'premium', 'rich', 'cinematic']);
   const finance = includesAny(`${topic} ${niche}`, ['money', 'finance', 'wealth', 'invest', 'cash', 'business']);
   const fitness = includesAny(`${topic} ${niche}`, ['fitness', 'gym', 'health', 'workout']);
@@ -49,11 +64,11 @@ function paletteFor({ topic, niche, tone }) {
   }
 
   return {
-    base: '#07111f',
-    accent: '#6ef3c5',
-    accent2: '#ff7a45',
-    glow: '#12243a',
-    keywords: ['FOCUS', 'IDEA', 'SHORTS', 'CREATE']
+    base: template.palette.base,
+    accent: template.palette.accent,
+    accent2: template.palette.accent2,
+    glow: template.palette.glow,
+    keywords: template.keywords
   };
 }
 

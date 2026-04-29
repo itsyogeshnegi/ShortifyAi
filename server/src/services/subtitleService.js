@@ -15,22 +15,50 @@ function timestamp(seconds) {
   return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
 }
 
+function splitIntoChunks(scriptText) {
+  const phrases = String(scriptText || '')
+    .replace(/\.\.\./g, '. ')
+    .split(/(?<=[.!?])\s+|,\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const chunks = [];
+  for (const phrase of phrases) {
+    const words = phrase.split(/\s+/).filter(Boolean);
+    if (words.length <= 6) {
+      chunks.push(phrase);
+      continue;
+    }
+
+    for (let index = 0; index < words.length; index += 5) {
+      chunks.push(words.slice(index, index + 5).join(' '));
+    }
+  }
+
+  return chunks.length ? chunks : [String(scriptText || '').trim()].filter(Boolean);
+}
+
+function buildSubtitleTimeline(scriptText, duration) {
+  const chunks = splitIntoChunks(scriptText);
+  return chunks.map((chunk, index) => {
+    const start = (duration / chunks.length) * index;
+    const end = (duration / chunks.length) * (index + 1);
+    return {
+      text: chunk,
+      start,
+      end
+    };
+  });
+}
+
 export async function createSubtitleFile(scriptText, duration, title) {
   const filename = `${Date.now()}-${slugify(title || 'captions', { lower: true, strict: true })}.ass`;
   const outputPath = path.join(storageDirs.temp, filename);
-  const words = scriptText.split(/\s+/).filter(Boolean);
-  const chunks = [];
-  const perChunk = Math.max(6, Math.ceil(words.length / Math.max(3, duration / 4)));
+  const timeline = buildSubtitleTimeline(scriptText, duration);
 
-  for (let i = 0; i < words.length; i += perChunk) {
-    chunks.push(words.slice(i, i + perChunk).join(' '));
-  }
-
-  const body = chunks
-    .map((chunk, index) => {
-      const start = (duration / chunks.length) * index;
-      const end = (duration / chunks.length) * (index + 1);
-      return `Dialogue: 0,${timestamp(start)},${timestamp(end)},Default,,0,0,0,,${escapeAss(chunk)}`;
+  const body = timeline
+    .map((chunk) => {
+      return `Dialogue: 0,${timestamp(chunk.start)},${timestamp(chunk.end)},Default,,0,0,0,,${escapeAss(chunk.text)}`;
     })
     .join('\n');
 
@@ -49,5 +77,5 @@ ${body}
 `;
 
   await fs.writeFile(outputPath, ass, 'utf8');
-  return { filename, path: outputPath };
+  return { filename, path: outputPath, timeline };
 }

@@ -58,12 +58,17 @@ export const deleteShort = asyncHandler(async (req, res) => {
     throw error;
   }
 
+  const backgroundFiles = [
+    project.media?.backgroundFilename,
+    ...(project.media?.backgrounds || []).map((background) => background.filename)
+  ].filter(Boolean);
+
   await Promise.all([
     safeUnlink(project.media?.videoFilename && path.join(storageDirs.videos, project.media.videoFilename)),
     safeUnlink(project.media?.audioFilename && path.join(storageDirs.audio, project.media.audioFilename)),
     safeUnlink(project.media?.thumbFilename && path.join(storageDirs.thumbs, project.media.thumbFilename)),
     safeUnlink(project.media?.subtitleFilename && path.join(storageDirs.temp, project.media.subtitleFilename)),
-    safeUnlink(project.media?.backgroundFilename && path.join(storageDirs.downloadedBackgrounds, project.media.backgroundFilename))
+    ...backgroundFiles.map((filename) => safeUnlink(path.join(storageDirs.downloadedBackgrounds, filename)))
   ]);
 
   await project.deleteOne();

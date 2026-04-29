@@ -4,7 +4,9 @@ import { generateScriptWithOllama } from './ollamaService.js';
 import { generateVoiceAudio } from './ttsService.js';
 import { generateThumbnail } from './thumbnailService.js';
 import { generateShortVideo } from './videoService.js';
-import { findAndDownloadPexelsBackground } from './pexelsService.js';
+import { findAndDownloadPexelsBackgrounds } from './pexelsService.js';
+import { createAmbientBed } from './ambientAudioService.js';
+import { getSceneCountForDuration } from './themeTemplateService.js';
 
 async function updateProgress(project, stage, percent, message, extra = {}) {
   project.progressStage = stage;
@@ -28,16 +30,25 @@ export async function runGenerationPipeline({ userId, projectId, input }) {
   );
 
   if (!project) throw new Error('Project not found for generation');
+  let ambient = null;
 
   try {
     const generated = await generateScriptWithOllama(input);
-    await updateProgress(project, 'background', 30, 'Finding a related Pexels background video.');
+    await updateProgress(project, 'background', 30, 'Finding multiple script-matched Pexels scene clips.');
 
-    const background = await findAndDownloadPexelsBackground(input);
+    const backgrounds = await findAndDownloadPexelsBackgrounds({ input, generated });
     const script = await Script.create({ user: userId, ...input, ...generated });
     await updateProgress(project, 'voice', 45, 'Creating voiceover audio locally.');
 
-    const audio = await generateVoiceAudio(`${generated.hook}. ${generated.fullScript}. ${generated.cta}`, generated.title);
+    const subtitleText = `${generated.hook}. ${generated.fullScript}. ${generated.cta}`;
+    const audio = await generateVoiceAudio(generated.voiceScript, generated.title);
+    await updateProgress(project, 'sound', 55, 'Adding ambient bed and aggressive motion SFX.');
+    ambient = await createAmbientBed({
+      themeTemplate: input.themeTemplate,
+      niche: input.niche,
+      duration: input.duration,
+      title: generated.title
+    });
     await updateProgress(project, 'thumbnail', 60, 'Generating thumbnail image.');
 
     const thumb = await generateThumbnail(generated.title);
@@ -45,16 +56,19 @@ export async function runGenerationPipeline({ userId, projectId, input }) {
 
     const video = await generateShortVideo({
       title: generated.title,
-      scriptText: `${generated.hook}. ${generated.fullScript}. ${generated.cta}`,
+      scriptText: subtitleText,
       duration: input.duration,
       audioPath: audio.path,
+      ambientAudioPath: ambient.path,
       topic: input.topic,
       niche: input.niche,
       tone: input.tone,
-      backgroundPath: background?.path
+      themeTemplate: input.themeTemplate,
+      sceneCount: getSceneCountForDuration(input.duration),
+      backgroundPaths: backgrounds.map((background) => background.path)
     });
-
     project.script = script._id;
+    project.themeTemplate = input.themeTemplate;
     project.title = generated.title;
     project.hook = generated.hook;
     project.cta = generated.cta;
@@ -64,11 +78,19 @@ export async function runGenerationPipeline({ userId, projectId, input }) {
       audioFilename: audio.filename,
       thumbFilename: thumb.filename,
       subtitleFilename: video.subtitleFilename,
-      backgroundFilename: background?.filename,
-      backgroundProvider: background?.provider,
-      backgroundSourceUrl: background?.sourceUrl,
-      backgroundCredit: background?.credit,
-      backgroundCreditUrl: background?.creditUrl
+      backgroundFilename: backgrounds[0]?.filename,
+      backgroundProvider: backgrounds[0]?.provider,
+      backgroundSourceUrl: backgrounds[0]?.sourceUrl,
+      backgroundCredit: backgrounds[0]?.credit,
+      backgroundCreditUrl: backgrounds[0]?.creditUrl,
+      backgrounds: backgrounds.map((background) => ({
+        filename: background.filename,
+        provider: background.provider,
+        sourceUrl: background.sourceUrl,
+        credit: background.credit,
+        creditUrl: background.creditUrl,
+        segmentIndex: background.segmentIndex
+      }))
     };
     project.status = 'completed';
     project.progressStage = 'completed';
@@ -84,5 +106,9 @@ export async function runGenerationPipeline({ userId, projectId, input }) {
     project.progressMessage = error.message;
     await project.save();
     throw error;
+  } finally {
+    if (ambient) {
+      await ambient.cleanup().catch(() => {});
+    }
   }
 }

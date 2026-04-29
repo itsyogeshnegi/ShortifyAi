@@ -6,14 +6,23 @@ import { storageDirs } from '../utils/storage.js';
 
 const execFileAsync = promisify(execFile);
 
+function normalizeSpeechText(scriptText) {
+  return String(scriptText || '')
+    .replace(/[–—]/g, '... ')
+    .replace(/\s+/g, ' ')
+    .replace(/([.!?])\s+/g, '$1 ... ')
+    .trim()
+    .slice(0, 6000);
+}
+
 export async function generateVoiceAudio(scriptText, title) {
   const basename = `${Date.now()}-${slugify(title || 'short-audio', { lower: true, strict: true })}.wav`;
   const outputPath = path.join(storageDirs.audio, basename);
-  const speechText = String(scriptText || '').slice(0, 6000);
+  const speechText = normalizeSpeechText(scriptText);
   const command = `
 Add-Type -AssemblyName System.Speech;
 $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer;
-$speak.Rate = 1;
+$speak.Rate = 0;
 $speak.Volume = 100;
 $speak.SetOutputToWaveFile($env:SHORTIFY_TTS_OUTPUT);
 $speak.Speak($env:SHORTIFY_TTS_TEXT);

@@ -42,7 +42,8 @@ export async function cleanupOldUploads() {
           { 'media.audioFilename': { $in: removed } },
           { 'media.thumbFilename': { $in: removed } },
           { 'media.subtitleFilename': { $in: removed } },
-          { 'media.backgroundFilename': { $in: removed } }
+          { 'media.backgroundFilename': { $in: removed } },
+          { 'media.backgrounds.filename': { $in: removed } }
         ]
       },
       { status: 'expired' }

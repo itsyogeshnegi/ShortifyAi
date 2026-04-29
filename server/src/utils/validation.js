@@ -1,3 +1,5 @@
+import { getDefaultThemeTemplateId, getThemeTemplateById } from '../services/themeTemplateService.js';
+
 const durations = [15, 30, 60];
 
 export function validateShortInput(body) {
@@ -6,6 +8,7 @@ export function validateShortInput(body) {
   const tone = String(body.tone || '').trim();
   const language = String(body.language || '').trim();
   const duration = Number(body.duration);
+  const requestedThemeTemplate = String(body.themeTemplate || '').trim();
 
   if (!topic || !niche || !tone || !language || !durations.includes(duration)) {
     const error = new Error('Topic, niche, tone, language, and duration (15/30/60) are required.');
@@ -13,5 +16,9 @@ export function validateShortInput(body) {
     throw error;
   }
 
-  return { topic, niche, tone, duration, language };
+  const themeTemplate = requestedThemeTemplate
+    ? getThemeTemplateById(requestedThemeTemplate).id
+    : getDefaultThemeTemplateId(niche);
+
+  return { topic, niche, tone, duration, language, themeTemplate };
 }

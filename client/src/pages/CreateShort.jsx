@@ -1,24 +1,21 @@
 import { useState } from 'react';
 import { api } from '../api/http.js';
+import { getDefaultThemeTemplateId, themeTemplates } from '../themeTemplates.js';
 
-const niches = [
-  'Money / Success',
-  'AI / Tech',
-  'Motivation',
-  'Facts / Knowledge',
-  'Fitness / Bodybuilding',
-  'Crypto / Finance',
-  'Relationships / Psychology'
-];
+const niches = themeTemplates.map((template) => template.label);
 
-const initialForm = {
-  topic: '',
-  niche: niches[0],
-  tone: 'Energetic',
-  duration: 30,
-  language: 'English',
-  scheduledFor: ''
-};
+function buildInitialForm() {
+  return {
+    topic: '',
+    niche: niches[0],
+    themeTemplate: getDefaultThemeTemplateId(niches[0]),
+    tone: 'Energetic',
+    duration: 30,
+    language: 'English'
+  };
+}
+
+const initialForm = buildInitialForm();
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -31,6 +28,19 @@ export default function CreateShort() {
   const [result, setResult] = useState(null);
   const [progress, setProgress] = useState(null);
   const [error, setError] = useState('');
+
+  const handleNicheChange = (niche) => {
+    setForm((current) => {
+      const currentDefault = getDefaultThemeTemplateId(current.niche);
+      return {
+        ...current,
+        niche,
+        themeTemplate: !current.themeTemplate || current.themeTemplate === currentDefault
+          ? getDefaultThemeTemplateId(niche)
+          : current.themeTemplate
+      };
+    });
+  };
 
   const pollProject = async (projectId) => {
     while (projectId) {
@@ -72,7 +82,6 @@ export default function CreateShort() {
 
     try {
       const payload = { ...form, duration: Number(form.duration) };
-      if (!payload.scheduledFor) delete payload.scheduledFor;
       const { data } = await api.post('/shorts/create', payload);
       const project = data.project || data;
       setResult(project);
@@ -82,16 +91,11 @@ export default function CreateShort() {
         message: project.progressMessage || data.message || 'Short generation started.'
       });
 
-      if (project.status === 'scheduled') {
-        setForm(initialForm);
-        return;
-      }
-
       const completed = await pollProject(project._id);
       if (completed?.status === 'failed') {
         setError(completed.errorMessage || 'Generation failed. Check MongoDB, Ollama, FFmpeg, Pexels, and Windows SAPI.');
       } else if (completed?.status === 'completed') {
-        setForm(initialForm);
+        setForm(buildInitialForm());
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Generation failed. Check MongoDB, Ollama, FFmpeg, and Windows SAPI.');
@@ -108,9 +112,18 @@ export default function CreateShort() {
         <div className="mt-6 grid gap-4">
           <input className="field" required placeholder="Topic, e.g. 5 AI tools for students" value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} />
           <div className="grid gap-3">
-            <select className="field" value={form.niche} onChange={(e) => setForm({ ...form, niche: e.target.value })}>
-              {niches.map((niche) => <option key={niche}>{niche}</option>)}
-            </select>
+            <label className="text-sm font-bold text-frost/68">
+              Niche
+              <select className="field mt-2" value={form.niche} onChange={(e) => handleNicheChange(e.target.value)}>
+                {niches.map((niche) => <option key={niche}>{niche}</option>)}
+              </select>
+            </label>
+            <label className="text-sm font-bold text-frost/68">
+              Theme template
+              <select className="field mt-2" value={form.themeTemplate} onChange={(e) => setForm({ ...form, themeTemplate: e.target.value })}>
+                {themeTemplates.map((template) => <option key={template.id} value={template.id}>{template.label}</option>)}
+              </select>
+            </label>
             <button
               className="btn-muted w-full disabled:opacity-50"
               disabled={ideasLoading}
@@ -152,17 +165,13 @@ export default function CreateShort() {
             <option value="60">60 seconds</option>
           </select>
           <input className="field" required placeholder="Language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
-          <label className="text-sm font-bold text-frost/70">
-            Schedule for later
-            <input className="field mt-2" type="datetime-local" value={form.scheduledFor} onChange={(e) => setForm({ ...form, scheduledFor: e.target.value })} />
-          </label>
         </div>
         <button className="btn-primary mt-6 w-full disabled:opacity-50" disabled={loading}>{loading ? 'Generating...' : 'Generate short'}</button>
         {error && <p className="mt-4 break-words rounded-2xl bg-ember/15 p-3 text-sm text-ember">{error}</p>}
       </form>
       <aside className="glass min-w-0 rounded-[2rem] p-5 sm:p-6">
         <h2 className="font-display text-2xl font-bold">Output preview</h2>
-        {!result && !progress && <p className="mt-4 text-frost/60">Generated title, hook, files, and schedule status will appear here.</p>}
+        {!result && !progress && <p className="mt-4 text-frost/60">Generated title, hook, scene-matched visuals, and files will appear here.</p>}
         {progress && (
           <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between gap-3 text-sm">
@@ -182,7 +191,7 @@ export default function CreateShort() {
           <div className="mt-5 grid gap-4 text-sm">
             <p><span className="font-bold text-mint">Status:</span> {result.status || result.project?.status}</p>
             <p className="break-words"><span className="font-bold text-mint">Title:</span> {result.title || result.project?.title}</p>
-            <p className="break-words"><span className="font-bold text-mint">Hook:</span> {result.hook || result.project?.hook || 'Scheduled job queued.'}</p>
+            <p className="break-words"><span className="font-bold text-mint">Hook:</span> {result.hook || result.project?.hook || 'Your short is being assembled.'}</p>
             {result.media?.backgroundCredit && (
               <p className="break-words text-frost/60">
                 {result.media.backgroundCreditUrl ? (

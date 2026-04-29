@@ -9,6 +9,7 @@ const projectSchema = new mongoose.Schema(
     tone: { type: String, required: true },
     duration: { type: Number, enum: [15, 30, 60], required: true },
     language: { type: String, required: true },
+    themeTemplate: { type: String, default: 'money-success' },
     title: { type: String, default: 'Untitled short' },
     hook: { type: String, default: '' },
     cta: { type: String, default: '' },
@@ -28,7 +29,17 @@ const projectSchema = new mongoose.Schema(
       backgroundProvider: String,
       backgroundSourceUrl: String,
       backgroundCredit: String,
-      backgroundCreditUrl: String
+      backgroundCreditUrl: String,
+      backgrounds: [
+        {
+          filename: String,
+          provider: String,
+          sourceUrl: String,
+          credit: String,
+          creditUrl: String,
+          segmentIndex: Number
+        }
+      ]
     },
     progressStage: { type: String, default: 'queued' },
     progressPercent: { type: Number, default: 0 },

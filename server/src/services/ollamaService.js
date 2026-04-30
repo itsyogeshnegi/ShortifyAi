@@ -51,9 +51,123 @@ function normalizeVoiceScript({ hook, fullScript, cta, fallbackTopic }) {
     .trim();
 }
 
+function getOllamaBaseUrl() {
+  return String(process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/+$/, '');
+}
+
+function getOllamaModel() {
+  return process.env.OLLAMA_MODEL || 'gemma4:31b-cloud';
+}
+
+function getOllamaAuthMode() {
+  return String(process.env.OLLAMA_AUTH_MODE || 'auto').toLowerCase();
+}
+
+function isCloudModel(model) {
+  return /-cloud$/i.test(String(model || ''));
+}
+
+function isDirectCloudBaseUrl(baseURL) {
+  return /^https:\/\/ollama\.com(?:\/|$)/i.test(baseURL);
+}
+
+function buildOllamaHeaders({ baseURL, model }) {
+  const authMode = getOllamaAuthMode();
+  const directCloud = isDirectCloudBaseUrl(baseURL);
+  const apiKey = String(process.env.OLLAMA_API_KEY || '').trim();
+
+  if (authMode === 'local') {
+    return {};
+  }
+
+  if (authMode === 'cloud') {
+    if (!apiKey) {
+      const error = new Error('OLLAMA_AUTH_MODE is set to cloud, but OLLAMA_API_KEY is missing.');
+      error.statusCode = 500;
+      throw error;
+    }
+    return { Authorization: `Bearer ${apiKey}` };
+  }
+
+  if (directCloud) {
+    if (!apiKey) {
+      const error = new Error('OLLAMA_BASE_URL points to ollama.com, but OLLAMA_API_KEY is missing.');
+      error.statusCode = 500;
+      throw error;
+    }
+    return { Authorization: `Bearer ${apiKey}` };
+  }
+
+  if (isCloudModel(model)) {
+    return {};
+  }
+
+  return {};
+}
+
+function extractUpstreamDetails(error) {
+  const data = error?.response?.data;
+  if (typeof data === 'string' && data.trim()) return data.trim();
+  if (data?.error) return String(data.error).trim();
+  if (data?.message) return String(data.message).trim();
+  return '';
+}
+
+function buildCloud401Error({ baseURL, model, details }) {
+  const directCloud = isDirectCloudBaseUrl(baseURL);
+  const cloudModel = isCloudModel(model);
+
+  if (!cloudModel) {
+    const error = new Error(`Ollama request failed with status code 401.${details ? ` ${details}` : ''}`.trim());
+    error.statusCode = 401;
+    return error;
+  }
+
+  const fix = directCloud
+    ? 'Set OLLAMA_API_KEY to a valid Ollama API key when using OLLAMA_BASE_URL=https://ollama.com.'
+    : 'Run `ollama signin` on this machine, or switch to direct cloud mode with OLLAMA_BASE_URL=https://ollama.com and OLLAMA_API_KEY=your_key.';
+
+  const error = new Error(`Ollama cloud authentication failed for model ${model}. ${fix}${details ? ` Upstream: ${details}` : ''}`);
+  error.statusCode = 401;
+  return error;
+}
+
+async function requestOllamaGenerate({ prompt, model }) {
+  const baseURL = getOllamaBaseUrl();
+  const requestModel = model || getOllamaModel();
+  const url = `${baseURL}/api/generate`;
+
+  try {
+    const { data } = await axios.post(
+      url,
+      { model: requestModel, prompt, stream: false, format: 'json' },
+      {
+        timeout: 120000,
+        headers: buildOllamaHeaders({ baseURL, model: requestModel })
+      }
+    );
+
+    return data;
+  } catch (error) {
+    const status = error?.response?.status;
+    const details = extractUpstreamDetails(error);
+
+    if (status === 401) {
+      throw buildCloud401Error({ baseURL, model: requestModel, details });
+    }
+
+    if (status) {
+      const wrapped = new Error(`Ollama request failed with status code ${status}.${details ? ` ${details}` : ''}`.trim());
+      wrapped.statusCode = status >= 400 && status < 600 ? status : 502;
+      throw wrapped;
+    }
+
+    throw error;
+  }
+}
+
 export async function generateScriptWithOllama(input) {
-  const baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-  const model = process.env.OLLAMA_MODEL || 'llama3.2:3b';
+  const model = getOllamaModel();
   const prompt = `
 You are ShortifyAI, a YouTube Shorts strategist.
 Return only valid JSON with this exact shape:
@@ -80,12 +194,7 @@ voiceScript should be optimized for TTS with micro-pauses using commas and ellip
 Make it punchy, retention-focused, and safe for general audiences.
 `;
 
-  const { data } = await axios.post(
-    `${baseURL}/api/generate`,
-    { model, prompt, stream: false, format: 'json' },
-    { timeout: 120000 }
-  );
-
+  const data = await requestOllamaGenerate({ prompt, model });
   const parsed = typeof data.response === 'string' ? parseJsonFromText(data.response) : data.response;
 
   return {
@@ -106,8 +215,7 @@ Make it punchy, retention-focused, and safe for general audiences.
 }
 
 export async function generateTopicIdeasWithOllama(niche) {
-  const baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-  const model = process.env.OLLAMA_MODEL || 'llama3.2:3b';
+  const model = getOllamaModel();
   const prompt = `
 Give me 20 viral YouTube Shorts topics in ${niche}.
 Make them curiosity-driven, emotional, highly clickable, short title only.
@@ -119,12 +227,7 @@ Return only valid JSON with this exact shape:
 }
 `;
 
-  const { data } = await axios.post(
-    `${baseURL}/api/generate`,
-    { model, prompt, stream: false, format: 'json' },
-    { timeout: 120000 }
-  );
-
+  const data = await requestOllamaGenerate({ prompt, model });
   const response = typeof data.response === 'string' ? data.response : JSON.stringify(data.response || {});
   const topics = parseTopicIdeas(response);
 
@@ -136,8 +239,7 @@ Return only valid JSON with this exact shape:
 }
 
 export async function generateYoutubeMetadataWithOllama(project) {
-  const baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-  const model = process.env.OLLAMA_MODEL || 'llama3.2:3b';
+  const model = getOllamaModel();
   const script = project.script || {};
   const prompt = `
 You are a YouTube Shorts SEO strategist.
@@ -159,12 +261,7 @@ Hashtags: ${(project.hashtags || []).join(', ')}
 Target Indian + global audience. Make it searchable, natural, and not spammy.
 `;
 
-  const { data } = await axios.post(
-    `${baseURL}/api/generate`,
-    { model, prompt, stream: false, format: 'json' },
-    { timeout: 120000 }
-  );
-
+  const data = await requestOllamaGenerate({ prompt, model });
   const parsed = typeof data.response === 'string' ? parseJsonFromText(data.response) : data.response;
   const tags = Array.isArray(parsed.tags) ? parsed.tags.map(String).map((tag) => tag.replace(/^#/, '').trim()).filter(Boolean) : [];
 

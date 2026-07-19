@@ -1,78 +1,57 @@
-import { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { Clapperboard, CreditCard, LayoutDashboard, Moon, Settings, Sun, Wand2 } from 'lucide-react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Clapperboard, CreditCard, LayoutDashboard, Plus, Settings, Video } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const links = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/create', label: 'Create Short', icon: Wand2 },
-  { to: '/videos', label: 'My Videos', icon: Clapperboard },
+  { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { to: '/create', label: 'Create short', icon: Plus },
+  { to: '/videos', label: 'Video library', icon: Clapperboard },
   { to: '/billing', label: 'Billing', icon: CreditCard },
   { to: '/settings', label: 'Settings', icon: Settings }
 ];
 
+const pageTitles = { '/dashboard': 'Overview', '/create': 'Create short', '/videos': 'Video library', '/billing': 'Billing', '/settings': 'Settings' };
+
 export default function Shell() {
   const { user } = useAuth();
-  const [theme, setTheme] = useState(() => localStorage.getItem('shortifyai_theme') || 'dark');
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem('shortifyai_theme', theme);
-  }, [theme]);
-
-  const isLight = theme === 'light';
+  const { pathname } = useLocation();
+  const initials = (user?.name || 'SA').split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen overflow-x-hidden px-3 py-4 sm:px-5 lg:px-6 lg:py-6">
-      <div className="app-shell mx-auto grid gap-5">
-        <header className="glass sticky top-3 z-40 mb-[20px] rounded-[1.7rem] p-3 sm:top-5">
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
-            <NavLink to="/" className="flex min-w-0 items-center gap-3 rounded-2xl px-2 py-1">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-mint text-ink shadow-[0_0_28px_rgba(110,243,197,0.35)]">
-                <Wand2 size={18} />
-              </span>
-              <span className="min-w-0">
-                <span className="block font-display text-xl font-bold text-white">ShortifyAI</span>
-                <span className="block truncate text-xs text-frost/52">Neural shorts command center</span>
-              </span>
+    <div className="workspace-shell">
+      <aside className="workspace-sidebar">
+        <NavLink to="/dashboard" className="brand-mark" aria-label="ShortifyAI overview">
+          <span className="brand-icon"><Video size={18} /></span>
+          <span><strong>ShortifyAI</strong><small>Creator workspace</small></span>
+        </NavLink>
+        <nav className="workspace-nav" aria-label="Primary navigation">
+          <p className="nav-section-label">Workspace</p>
+          {links.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => `nav-item${isActive ? ' is-active' : ''}`}>
+              <Icon size={18} strokeWidth={1.8} /><span>{label}</span>
             </NavLink>
+          ))}
+        </nav>
+        <div className="sidebar-account">
+          <span className="account-avatar">{initials}</span>
+          <span className="min-w-0"><strong>{user?.name}</strong><small>{user?.email}</small></span>
+        </div>
+      </aside>
 
-            <nav className="order-3 flex w-full gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.035] p-1 sm:order-none sm:w-auto sm:flex-wrap sm:justify-center">
-              {links.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    `group flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition sm:text-sm ${isActive ? 'bg-mint text-ink shadow-[0_0_28px_rgba(110,243,197,0.28)]' : 'text-frost/68 hover:bg-white/10 hover:text-white'
-                    }`
-                  }
-                >
-                  <Icon className="transition group-hover:scale-110" size={18} />
-                  <span className="hidden md:inline">{label}</span>
-                </NavLink>
-              ))}
-            </nav>
-
-            <div className="flex items-center gap-2">
-              <div className="hidden rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2 text-right sm:block">
-                <p className="text-xs text-frost/50">{user?.name}</p>
-                <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-mint">{user?.role}</p>
-              </div>
-              <button
-                className="btn-muted grid h-11 w-11 place-items-center p-0"
-                onClick={() => setTheme(isLight ? 'dark' : 'light')}
-                title={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
-                type="button"
-              >
-                {isLight ? <Moon size={18} /> : <Sun size={18} />}
-              </button>
-            </div>
-          </div>
+      <div className="workspace-content">
+        <header className="workspace-topbar">
+          <div className="mobile-brand"><span className="brand-icon"><Video size={17} /></span><strong>ShortifyAI</strong></div>
+          <p>{pageTitles[pathname] || 'Workspace'}</p>
+          <span className="system-status"><i /> Local system</span>
         </header>
-
-        <main className="dashboard-main">
-          <Outlet />
-        </main>
+        <nav className="mobile-nav" aria-label="Mobile navigation">
+          {links.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => `mobile-nav-item${isActive ? ' is-active' : ''}`}>
+              <Icon size={18} /><span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <main className="dashboard-main"><Outlet /></main>
       </div>
     </div>
   );

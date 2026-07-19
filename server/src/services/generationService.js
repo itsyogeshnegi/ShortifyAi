@@ -38,15 +38,15 @@ export async function runGenerationPipeline({ userId, projectId, input }) {
 
     const backgrounds = await findAndDownloadPexelsBackgrounds({ input, generated });
     const script = await Script.create({ user: userId, ...input, ...generated });
-    await updateProgress(project, 'voice', 45, 'Creating voiceover audio locally.');
+    await updateProgress(project, 'voice', 45, 'Creating a natural voiceover.');
 
-    const subtitleText = `${generated.hook}. ${generated.fullScript}. ${generated.cta}`;
-    const audio = await generateVoiceAudio(generated.voiceScript, generated.title);
+    const audio = await generateVoiceAudio(generated.voiceScript, generated.title, input.language);
+    const renderDuration = Math.max(Number(input.duration), Number(audio.duration || 0) + 0.25);
     await updateProgress(project, 'sound', 55, 'Adding ambient bed and aggressive motion SFX.');
     ambient = await createAmbientBed({
       themeTemplate: input.themeTemplate,
       niche: input.niche,
-      duration: input.duration,
+      duration: renderDuration,
       title: generated.title
     });
     await updateProgress(project, 'thumbnail', 60, 'Generating thumbnail image.');
@@ -56,8 +56,9 @@ export async function runGenerationPipeline({ userId, projectId, input }) {
 
     const video = await generateShortVideo({
       title: generated.title,
-      scriptText: subtitleText,
-      duration: input.duration,
+      scriptText: audio.speechText,
+      subtitleTimeline: audio.timeline,
+      duration: renderDuration,
       audioPath: audio.path,
       ambientAudioPath: ambient.path,
       topic: input.topic,

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/http.js';
 import VideoCard from '../components/VideoCard.jsx';
 
@@ -15,16 +17,13 @@ export default function MyVideos() {
   }, []);
 
   return (
-    <div className="grid min-w-0 gap-5">
-      <header className="glass overflow-hidden rounded-[2rem] p-5 sm:p-7">
-        <div className="relative z-10">
-          <p className="neon-label">My Videos</p>
-          <h1 className="text-gradient mt-3 break-words font-display text-4xl font-bold leading-tight sm:text-5xl">Local MP4 library</h1>
-          <p className="mt-3 max-w-2xl text-frost/60">Every rendered short, ready for preview, download, and publishing control.</p>
-        </div>
+    <div className="page-stack">
+      <header className="page-heading">
+        <div><p className="eyebrow">Content library</p><h1>Video library</h1><p>Review, download, and publish your generated shorts.</p></div>
+        <Link className="btn-primary" to="/create"><Plus size={17} /> Create short</Link>
       </header>
-      {projects.map((project) => <VideoCard key={project._id} project={project} onDeleted={load} />)}
-      {!projects.length && <p className="glass rounded-[1.5rem] p-6 text-frost/60">No videos created yet.</p>}
+      <div className="video-library">{projects.map((project) => <VideoCard key={project._id} project={project} onDeleted={load} />)}</div>
+      {!projects.length && <div className="data-section empty-state"><strong>No videos yet</strong><span>Completed projects will appear in this library.</span></div>}
     </div>
   );
 }

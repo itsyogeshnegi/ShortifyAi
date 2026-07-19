@@ -51,10 +51,10 @@ function buildSubtitleTimeline(scriptText, duration) {
   });
 }
 
-export async function createSubtitleFile(scriptText, duration, title) {
+export async function createSubtitleFile(scriptText, duration, title, timedTimeline = []) {
   const filename = `${Date.now()}-${slugify(title || 'captions', { lower: true, strict: true })}.ass`;
   const outputPath = path.join(storageDirs.temp, filename);
-  const timeline = buildSubtitleTimeline(scriptText, duration);
+  const timeline = timedTimeline.length ? timedTimeline : buildSubtitleTimeline(scriptText, duration);
 
   const body = timeline
     .map((chunk) => {

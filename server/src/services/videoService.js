@@ -61,10 +61,10 @@ function buildVideoSegmentFilter({ inputIndex, duration, visualTheme, slot }) {
 function buildAudioFilter({ voiceIndex, ambientIndex, sfxIndex, duration }) {
   const fadeOutStart = Math.max(0.2, duration - 1.0);
   return [
-    `[${voiceIndex}:a]volume=1.0,aresample=44100,atrim=duration=${duration},acompressor=threshold=-16dB:ratio=2.2:attack=15:release=180,asetpts=PTS-STARTPTS[voice]`,
+    `[${voiceIndex}:a]volume=1.0,aresample=44100,apad=pad_dur=${duration},atrim=duration=${duration},acompressor=threshold=-16dB:ratio=2.2:attack=15:release=180,asetpts=PTS-STARTPTS[voice]`,
     `[${ambientIndex}:a]volume=0.18,aresample=44100,atrim=duration=${duration},afade=t=in:st=0:d=0.5,afade=t=out:st=${fadeOutStart}:d=0.8,asetpts=PTS-STARTPTS[bed]`,
     `[${sfxIndex}:a]volume=0.45,aresample=44100,atrim=duration=${duration},asetpts=PTS-STARTPTS[sfx]`,
-    `[voice][bed][sfx]amix=inputs=3:weights='1 0.85 0.9':normalize=0:duration=first[aout]`
+    `[voice][bed][sfx]amix=inputs=3:weights='1 0.85 0.9':normalize=0:duration=longest[aout]`
   ].join(';');
 }
 
@@ -104,6 +104,7 @@ function buildFilterComplex({ sceneSlots, segmentTimes, subtitlePath, duration, 
 export async function generateShortVideo({
   title,
   scriptText,
+  subtitleTimeline = [],
   duration,
   audioPath,
   ambientAudioPath,
@@ -116,7 +117,7 @@ export async function generateShortVideo({
 }) {
   const filename = `${Date.now()}-${slugify(title || 'shortifyai-video', { lower: true, strict: true })}.mp4`;
   const outputPath = path.join(storageDirs.videos, filename);
-  const subtitle = await createSubtitleFile(scriptText, duration, title);
+  const subtitle = await createSubtitleFile(scriptText, duration, title, subtitleTimeline);
   const sfxTrack = await createSoundEffectsTrack({
     title,
     duration,

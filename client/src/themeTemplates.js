@@ -43,8 +43,31 @@ export const themeTemplates = [
   }
 ];
 
+export const nicheOptions = [
+  { label: 'Money / Success', templateId: 'money-success' },
+  { label: 'Business / Entrepreneurship', templateId: 'money-success' },
+  { label: 'Marketing / Social Media', templateId: 'money-success' },
+  { label: 'AI / Tech', templateId: 'ai-tech' },
+  { label: 'Gaming', templateId: 'ai-tech' },
+  { label: 'Science / Space', templateId: 'ai-tech' },
+  { label: 'Motivation', templateId: 'motivation' },
+  { label: 'Career / Productivity', templateId: 'motivation' },
+  { label: 'Travel / Adventure', templateId: 'motivation' },
+  { label: 'Facts / Knowledge', templateId: 'facts-knowledge' },
+  { label: 'Education / Study', templateId: 'facts-knowledge' },
+  { label: 'History / Mystery', templateId: 'facts-knowledge' },
+  { label: 'Fitness / Bodybuilding', templateId: 'fitness-bodybuilding' },
+  { label: 'Health / Wellness', templateId: 'fitness-bodybuilding' },
+  { label: 'Food / Nutrition', templateId: 'fitness-bodybuilding' },
+  { label: 'Sports', templateId: 'fitness-bodybuilding' },
+  { label: 'Crypto / Finance', templateId: 'crypto-finance' },
+  { label: 'Relationships / Psychology', templateId: 'relationships-psychology' },
+  { label: 'Parenting / Family', templateId: 'relationships-psychology' },
+  { label: 'Fashion / Beauty', templateId: 'relationships-psychology' }
+];
+
 export function getDefaultThemeTemplateId(niche) {
-  return themeTemplates.find((template) => template.niches.includes(niche))?.id || themeTemplates[0].id;
+  return nicheOptions.find((option) => option.label === niche)?.templateId || themeTemplates[0].id;
 }
 
 export function getThemeTemplateById(id) {

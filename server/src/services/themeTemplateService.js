@@ -120,6 +120,29 @@ const themeTemplates = [
   }
 ];
 
+const nicheTemplateIds = new Map([
+  ['Money / Success', 'money-success'],
+  ['Business / Entrepreneurship', 'money-success'],
+  ['Marketing / Social Media', 'money-success'],
+  ['AI / Tech', 'ai-tech'],
+  ['Gaming', 'ai-tech'],
+  ['Science / Space', 'ai-tech'],
+  ['Motivation', 'motivation'],
+  ['Career / Productivity', 'motivation'],
+  ['Travel / Adventure', 'motivation'],
+  ['Facts / Knowledge', 'facts-knowledge'],
+  ['Education / Study', 'facts-knowledge'],
+  ['History / Mystery', 'facts-knowledge'],
+  ['Fitness / Bodybuilding', 'fitness-bodybuilding'],
+  ['Health / Wellness', 'fitness-bodybuilding'],
+  ['Food / Nutrition', 'fitness-bodybuilding'],
+  ['Sports', 'fitness-bodybuilding'],
+  ['Crypto / Finance', 'crypto-finance'],
+  ['Relationships / Psychology', 'relationships-psychology'],
+  ['Parenting / Family', 'relationships-psychology'],
+  ['Fashion / Beauty', 'relationships-psychology']
+]);
+
 function cleanSceneText(value) {
   return String(value || '')
     .replace(/[#*"`]/g, ' ')
@@ -164,7 +187,7 @@ export function getThemeTemplateById(id) {
 }
 
 export function getDefaultThemeTemplateId(niche) {
-  return themeTemplates.find((template) => template.niches.includes(niche))?.id || themeTemplates[0].id;
+  return nicheTemplateIds.get(niche) || themeTemplates[0].id;
 }
 
 export function resolveThemeTemplate(themeTemplate, niche) {

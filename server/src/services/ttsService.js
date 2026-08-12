@@ -10,9 +10,9 @@ const execFileAsync = promisify(execFile);
 
 const languageVoices = {
   bengali: 'bn-IN-BashkarNeural',
-  english: 'en-IN-PrabhatNeural',
-  gujarati: 'gu-IN-NiranjanNeural',
+  english: 'en-US-ChristopherNeural',
   hindi: 'hi-IN-MadhurNeural',
+  gujarati: 'gu-IN-NiranjanNeural',
   kannada: 'kn-IN-GaganNeural',
   malayalam: 'ml-IN-MidhunNeural',
   marathi: 'mr-IN-ManoharNeural',
@@ -113,7 +113,7 @@ async function generateNeuralVoice(speechText, title, language) {
   try {
     const { audioStream, metadataStream } = tts.toStream(speechText, {
       rate: process.env.TTS_RATE || '+0%',
-      pitch: process.env.TTS_PITCH || '+0Hz',
+      pitch: process.env.TTS_PITCH || '-4Hz',
       volume: process.env.TTS_VOLUME || '+0%'
     });
     [chunks, metadataItems] = await Promise.all([

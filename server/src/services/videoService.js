@@ -36,10 +36,13 @@ function segmentDurations(duration, count) {
 }
 
 function buildSceneSlots({ clipPaths, sceneCount }) {
-  return Array.from({ length: sceneCount }, (_, index) => ({
-    type: clipPaths[index] ? 'clip' : 'visual',
-    path: clipPaths[index] || null
-  }));
+  return Array.from({ length: sceneCount }, (_, index) => {
+    const clipPath = clipPaths.length > 0 ? clipPaths[index % clipPaths.length] : null;
+    return {
+      type: clipPath ? 'clip' : 'visual',
+      path: clipPath
+    };
+  });
 }
 
 function buildVideoInputs({ sceneSlots, visualTheme }) {

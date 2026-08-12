@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Lightbulb, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Film, Lightbulb, Sparkles } from 'lucide-react';
 import { api } from '../api/http.js';
 import { nicheOptions } from '../themeTemplates.js';
 
@@ -181,7 +182,12 @@ export default function CreateShort() {
                 ) : result.media.backgroundCredit}
               </p>
             )}
-            <p className="output-note">Open Video library to review and download the completed MP4.</p>
+            <p className="output-note mb-4">Open Video library to review and download the completed MP4.</p>
+            {(result?.status === 'completed' || result?.project?.status === 'completed' || progress?.percent === 100) && (
+              <Link className="btn-primary flex items-center justify-center gap-2 text-center" to="/videos">
+                <Film size={18} /> Open Video Library
+              </Link>
+            )}
           </div>
         )}
         </div>

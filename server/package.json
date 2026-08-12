@@ -22,6 +22,7 @@
     "mongoose": "^8.9.5",
     "morgan": "^1.10.0",
     "msedge-tts": "^2.0.7",
+    "mongodb-memory-server": "^10.1.4",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "slugify": "^1.6.6"

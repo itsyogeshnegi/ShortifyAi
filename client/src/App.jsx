@@ -18,7 +18,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/create" element={<CreateShort />} />
           <Route path="/videos" element={<MyVideos />} />
-          <Route path="/billing" element={<Billing />} />
+          <Route path="/library" element={<Navigate to="/videos" replace />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>

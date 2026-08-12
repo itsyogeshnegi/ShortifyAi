@@ -1,9 +1,20 @@
 import axios from 'axios';
 
 function parseJsonFromText(text) {
-  const match = text.match(/\{[\s\S]*\}/);
+  const clean = String(text || '')
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  const match = clean.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('Ollama response did not contain JSON.');
-  return JSON.parse(match[0]);
+
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    const repaired = match[0].replace(/,\s*([}\]])/g, '$1');
+    return JSON.parse(repaired);
+  }
 }
 
 function cleanTopicLine(line) {
@@ -11,21 +22,26 @@ function cleanTopicLine(line) {
     .replace(/^\s*[-*]\s*/, '')
     .replace(/^\s*\d+[\).:-]\s*/, '')
     .replace(/^["']|["']$/g, '')
+    .replace(/```/g, '')
     .trim();
 }
 
 function parseTopicIdeas(response) {
   try {
     const parsed = parseJsonFromText(response);
-    if (Array.isArray(parsed.topics)) return parsed.topics.map(cleanTopicLine).filter(Boolean);
+    if (Array.isArray(parsed.topics) && parsed.topics.length > 0) {
+      return parsed.topics.map(cleanTopicLine).filter(Boolean);
+    }
   } catch {
-    // Fall back to line parsing when the local model ignores JSON instructions.
+    // Fall back to line parsing when model returns text or array list
   }
 
   return response
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
     .split(/\r?\n/)
     .map(cleanTopicLine)
-    .filter((line) => line && !/^topics?:?$/i.test(line))
+    .filter((line) => line && !/^(topics?|json|\[|\]|\{|\}):?$/i.test(line))
     .slice(0, 20);
 }
 
@@ -132,7 +148,19 @@ function buildCloud401Error({ baseURL, model, details }) {
   return error;
 }
 
-async function requestOllamaGenerate({ prompt, model }) {
+async function getAvailableLocalModel(baseURL) {
+  try {
+    const { data } = await axios.get(`${baseURL}/api/tags`, { timeout: 3000 });
+    const models = (data?.models || []).map((m) => m.name).filter(Boolean);
+    const local = models.find((m) => !isCloudModel(m));
+    if (local) return local;
+    return models[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+async function requestOllamaGenerate({ prompt, model, isRetry = false }) {
   const baseURL = getOllamaBaseUrl();
   const requestModel = model || getOllamaModel();
   const url = `${baseURL}/api/generate`;
@@ -151,6 +179,14 @@ async function requestOllamaGenerate({ prompt, model }) {
   } catch (error) {
     const status = error?.response?.status;
     const details = extractUpstreamDetails(error);
+
+    if (!isRetry && (isCloudModel(requestModel) || status === 404 || status === 401)) {
+      const fallbackLocal = await getAvailableLocalModel(baseURL);
+      if (fallbackLocal && fallbackLocal !== requestModel) {
+        console.warn(`Ollama model '${requestModel}' unavailable (${status || error.message}). Automatically falling back to local model '${fallbackLocal}'...`);
+        return await requestOllamaGenerate({ prompt, model: fallbackLocal, isRetry: true });
+      }
+    }
 
     if (status === 401) {
       throw buildCloud401Error({ baseURL, model: requestModel, details });

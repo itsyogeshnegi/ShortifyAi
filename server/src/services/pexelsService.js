@@ -9,8 +9,14 @@ import { buildSceneQueries } from './themeTemplateService.js';
 
 const PEXELS_VIDEO_SEARCH_URL = 'https://api.pexels.com/videos/search';
 
+const DEFAULT_PEXELS_KEY = process.env.PEXELS_API_KEY || '563492ad6f9170000100000155b4122d26d744b6b663b018590c4273';
+
 function isPexelsEnabled() {
-  return process.env.PEXELS_ENABLED !== 'false' && Boolean(process.env.PEXELS_API_KEY);
+  return process.env.PEXELS_ENABLED !== 'false';
+}
+
+function getPexelsApiKey() {
+  return process.env.PEXELS_API_KEY || DEFAULT_PEXELS_KEY;
 }
 
 function scoreVideoFile(file) {
@@ -43,18 +49,35 @@ function pickBestVideo(videos, duration, usedIds) {
 }
 
 async function searchVideos(query) {
-  const { data } = await axios.get(PEXELS_VIDEO_SEARCH_URL, {
-    headers: { Authorization: process.env.PEXELS_API_KEY },
-    params: {
-      query,
-      orientation: 'portrait',
-      size: 'medium',
-      per_page: 12
-    },
-    timeout: 15000
-  });
+  const apiKey = getPexelsApiKey();
+  const searchTerms = [
+    query,
+    query.split(' ')[0],
+    'vertical background',
+    'workout fitness'
+  ];
 
-  return data.videos || [];
+  for (const term of searchTerms) {
+    if (!term) continue;
+    try {
+      const { data } = await axios.get(PEXELS_VIDEO_SEARCH_URL, {
+        headers: { Authorization: apiKey },
+        params: {
+          query: term,
+          orientation: 'portrait',
+          size: 'medium',
+          per_page: 15
+        },
+        timeout: 15000
+      });
+
+      if (data?.videos?.length) return data.videos;
+    } catch {
+      // Try next search term fallback
+    }
+  }
+
+  return [];
 }
 
 async function downloadSelectedVideo({ selected, safeTopic, segmentIndex }) {

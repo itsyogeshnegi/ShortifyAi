@@ -250,6 +250,73 @@ Make it punchy, retention-focused, and safe for general audiences.
   };
 }
 
+const fallbackTopicMap = {
+  Money: [
+    'The 1% Money Rule Nobody Taught You',
+    'Stop Saving Money Like This',
+    '3 Assets Rich People Buy First',
+    'How Small Daily Habits Create Wealth',
+    'The Hidden Trap of Salary Income',
+    'Mastering Cash Flow in Your 20s'
+  ],
+  Mindset: [
+    'The Mental Shift That Changes Everything',
+    'Why Your Brain Resists Growth',
+    'Overcoming Self-Doubt Forever',
+    'The Quiet Power of High Standards',
+    'How Winners Handle Silence and Loneliness',
+    'Reprogramming Your Daily Thinking'
+  ],
+  Motivation: [
+    'When You Feel Like Giving Up',
+    'The Secret to Unstoppable Momentum',
+    'Don’t Waste Another Single Day',
+    'Why Discipline Outlasts Motivation Every Time',
+    'Build The Life You Never Need a Vacation From',
+    'The Harsh Truth About Hard Work'
+  ],
+  Relationships: [
+    'Signs of High Emotional Intelligence',
+    'How to Set Unshakeable Boundaries',
+    'The Single Biggest Mistake in Communication',
+    'Why Respect Beats Flattery Always',
+    'Building Deep Connection and Loyalty',
+    'How to Handle Toxic People Peacefully'
+  ],
+  'Life Lessons': [
+    'Lessons Most People Learn Too Late',
+    'The Power of Saying No Gracefully',
+    'Why Time is Your Only True Currency',
+    'Things That Matter Most at the End',
+    'How Mistakes Shape True Character',
+    'Simplicity is the Ultimate Sophistication'
+  ],
+  Emotional: [
+    'How to Process Pain and Turn it Into Strength',
+    'The Healing Power of Silence',
+    'Why Vulnerability is True Courage',
+    'Letting Go of What You Cannot Control',
+    'Finding Inner Peace in a Noisy World',
+    'Understanding Your Deepest Emotions'
+  ],
+  Discipline: [
+    'The 5 AM Rule of Self Control',
+    'How High Performers Stay Consistent',
+    'Eliminating Distractions Like a Pro',
+    'The Habit of Doing Hard Things First',
+    'Mastering Emotional Impulse Control',
+    'Discipline Equals Ultimate Freedom'
+  ],
+  Success: [
+    'The Unspoken Rules of High Achievers',
+    'How to Execute Ideas 10x Faster',
+    'Why Consistency Beats Genius',
+    'The Blueprint to Winning Long Term',
+    'Focus on Systems, Not Just Goals',
+    'How Winners Turn Failures Into Stepping Stones'
+  ]
+};
+
 export async function generateTopicIdeasWithOllama(niche) {
   const model = getOllamaModel();
   const prompt = `
@@ -263,15 +330,19 @@ Return only valid JSON with this exact shape:
 }
 `;
 
-  const data = await requestOllamaGenerate({ prompt, model });
-  const response = typeof data.response === 'string' ? data.response : JSON.stringify(data.response || {});
-  const topics = parseTopicIdeas(response);
+  try {
+    const data = await requestOllamaGenerate({ prompt, model });
+    const response = typeof data.response === 'string' ? data.response : JSON.stringify(data.response || {});
+    const topics = parseTopicIdeas(response);
 
-  if (!topics.length) {
-    throw new Error('Ollama did not return topic ideas. Try again with a different niche.');
+    if (topics.length > 0) {
+      return topics.slice(0, 20);
+    }
+  } catch (error) {
+    console.warn(`Ollama topic generation warning for niche '${niche}': ${error.message}. Using fallback topic list.`);
   }
 
-  return topics.slice(0, 20);
+  return fallbackTopicMap[niche] || fallbackTopicMap.Motivation;
 }
 
 export async function generateYoutubeMetadataWithOllama(project) {
@@ -306,4 +377,51 @@ Target Indian + global audience. Make it searchable, natural, and not spammy.
     description: String(parsed.description || '').trim(),
     tags: tags.slice(0, 20)
   };
+}
+
+function limitHashtagsTo5(caption) {
+  if (!caption) return '';
+
+  const matches = Array.from(caption.matchAll(/#[\w\u0900-\u097F]+/g)).map((m) => m[0]);
+  if (matches.length <= 5) return caption;
+
+  const top5 = matches.slice(0, 5).join(' ');
+  const textWithoutTags = caption.replace(/#[\w\u0900-\u097F]+/g, '').trim().replace(/\n{3,}/g, '\n\n');
+
+  return `${textWithoutTags}\n\n${top5}`;
+}
+
+export async function generateInstagramCaptionWithOllama(project) {
+  const model = getOllamaModel();
+  const script = project.script || {};
+  const prompt = `
+You are an expert Instagram Reels Content Creator & Copywriter.
+Return only valid JSON with this exact shape:
+{
+  "caption": "engaging Reel caption with emojis, value hook, call to action, and EXACTLY 5 trending hashtags at the bottom"
+}
+
+Create a viral Instagram Reel caption for this Short.
+Topic: ${project.topic}
+Niche: ${project.niche}
+Tone: ${project.tone}
+Title: ${project.title}
+Hook: ${project.hook}
+Script: ${script.fullScript || ''}
+Make it engaging, punchy, formatted with bullet points/emojis, and ending with EXACTLY 5 hashtags max.
+`;
+
+  try {
+    const data = await requestOllamaGenerate({ prompt, model });
+    const parsed = typeof data.response === 'string' ? parseJsonFromText(data.response) : data.response;
+    if (parsed?.caption) {
+      return { caption: limitHashtagsTo5(String(parsed.caption).trim()) };
+    }
+  } catch {
+    // Fallback
+  }
+
+  const topic = project.topic || project.title;
+  const fallbackCaption = `${project.hook || topic}\n\n💡 ${project.title}\n\n👉 Save this reel and follow for more daily ${project.niche || 'insights'}!\n\n#reels #viral #motivation #mindset #growth`;
+  return { caption: fallbackCaption };
 }

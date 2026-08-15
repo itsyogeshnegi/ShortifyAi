@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Download, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react';
-import { api, mediaUrl, thumbUrl } from '../api/http.js';
+import { Copy, Download, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react';
+import { api, coverUrl, mediaUrl, thumbUrl } from '../api/http.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -50,11 +50,21 @@ export default function VideoCard({ project, onDeleted }) {
   const [currentProject, setCurrentProject] = useState(project);
   const canDownload = currentProject.status === 'completed' && currentProject.media?.videoFilename;
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [igReviewOpen, setIgReviewOpen] = useState(false);
   const [youtubeStatus, setYoutubeStatus] = useState(null);
+  const [igStatus, setIgStatus] = useState(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
+  const [igCaptionLoading, setIgCaptionLoading] = useState(false);
+  const [igCoversLoading, setIgCoversLoading] = useState(false);
+  const [igCopied, setIgCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [igUploading, setIgUploading] = useState(false);
   const [statusChecking, setStatusChecking] = useState(false);
+  const [igStatusChecking, setIgStatusChecking] = useState(false);
   const [youtubeError, setYoutubeError] = useState('');
+  const [igError, setIgError] = useState('');
+  const [gridPreviewMode, setGridPreviewMode] = useState(false);
+  const [selectedCoverUrl, setSelectedCoverUrl] = useState(currentProject.instagram?.selectedCover || '');
   const [youtubeVideoIdInput, setYoutubeVideoIdInput] = useState('');
   const [uploadForm, setUploadForm] = useState({
     title: currentProject.youtube?.title || currentProject.title || currentProject.topic,
@@ -62,6 +72,9 @@ export default function VideoCard({ project, onDeleted }) {
     tags: (currentProject.youtube?.tags || currentProject.hashtags || []).join(', '),
     privacyStatus: currentProject.youtube?.privacyStatus || 'private',
     publishAt: formatLocalDateTimeInput(currentProject.youtube?.scheduledPublishAt)
+  });
+  const [igForm, setIgForm] = useState({
+    caption: currentProject.instagram?.caption || `${currentProject.title}\n\n${currentProject.hook}`
   });
   const youtubeUploadStatus = currentProject.youtube?.status || 'not_uploaded';
   const hasYoutubeVideo = Boolean(currentProject.youtube?.videoId || currentProject.youtube?.watchUrl);
@@ -216,6 +229,121 @@ export default function VideoCard({ project, onDeleted }) {
     }
   };
 
+  const openIgReview = async () => {
+    setIgReviewOpen(true);
+    setIgError('');
+    try {
+      const { data } = await api.get('/instagram/status');
+      setIgStatus(data);
+    } catch (err) {
+      setIgError(err.response?.data?.message || 'Could not check Instagram connection.');
+    }
+  };
+
+  const connectInstagram = async () => {
+    setIgError('');
+    try {
+      const { data } = await api.get('/instagram/auth-url');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      setIgError(err.response?.data?.message || 'Could not start Instagram connection.');
+    }
+  };
+
+  const generateIgCaption = async () => {
+    setIgCaptionLoading(true);
+    setIgError('');
+    try {
+      const { data } = await api.post(`/instagram/metadata/${currentProject._id}`);
+      setIgForm({ caption: data.caption || '' });
+    } catch (err) {
+      setIgError(err.response?.data?.message || 'Could not generate Instagram Reel caption.');
+    } finally {
+      setIgCaptionLoading(false);
+    }
+  };
+
+  const copyIgCaption = async () => {
+    if (!igForm.caption) return;
+    try {
+      await navigator.clipboard.writeText(igForm.caption);
+      setIgCopied(true);
+      setTimeout(() => setIgCopied(false), 2000);
+    } catch {
+      // Ignore clipboard fallback
+    }
+  };
+
+  const generateIgCovers = async () => {
+    const projectId = currentProject._id || currentProject.id;
+    setIgCoversLoading(true);
+    setIgError('');
+    try {
+      const { data } = await api.post(`/instagram/covers/generate/${projectId}`);
+      setCurrentProject((prev) => ({
+        ...prev,
+        instagram: {
+          ...prev.instagram,
+          covers: data.covers,
+          selectedCover: data.selectedCover
+        }
+      }));
+      setSelectedCoverUrl(data.selectedCover || '');
+    } catch (err) {
+      setIgError(err.response?.data?.message || 'Could not generate AI Reel covers.');
+    } finally {
+      setIgCoversLoading(false);
+    }
+  };
+
+  const selectIgCover = async (coverUrl) => {
+    const projectId = currentProject._id || currentProject.id;
+    setSelectedCoverUrl(coverUrl);
+    try {
+      await api.post(`/instagram/covers/select/${projectId}`, { coverUrl });
+      setCurrentProject((prev) => ({
+        ...prev,
+        instagram: {
+          ...prev.instagram,
+          selectedCover: coverUrl
+        }
+      }));
+    } catch {
+      // Ignore transient cover select error
+    }
+  };
+
+  const uploadToInstagram = async () => {
+    const projectId = currentProject._id || currentProject.id;
+    setIgUploading(true);
+    setIgError('');
+    try {
+      const { data } = await api.post(`/instagram/upload/${projectId}`, {
+        caption: igForm.caption,
+        coverUrl: selectedCoverUrl
+      });
+      setCurrentProject(data);
+    } catch (err) {
+      setIgError(err.response?.data?.message || 'Instagram Reel upload failed.');
+    } finally {
+      setIgUploading(false);
+    }
+  };
+
+  const refreshIgStatus = async () => {
+    const projectId = currentProject._id || currentProject.id;
+    setIgStatusChecking(true);
+    setIgError('');
+    try {
+      const { data } = await api.post(`/instagram/status/${projectId}`);
+      setCurrentProject(data);
+    } catch (err) {
+      setIgError(err.response?.data?.message || 'Could not refresh Instagram Reel status.');
+    } finally {
+      setIgStatusChecking(false);
+    }
+  };
+
   return (
     <article className="glass min-w-0 overflow-hidden rounded-[1.6rem] p-4 sm:p-5">
       <div className="relative z-10 grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
@@ -262,7 +390,10 @@ export default function VideoCard({ project, onDeleted }) {
               <span className="inline-flex items-center gap-2"><Download size={16} /> Download MP4</span>
             </button>
             <button className="btn-muted disabled:opacity-40" disabled={!canDownload} onClick={openReview}>
-              <span className="inline-flex items-center gap-2"><UploadCloud size={16} /> Review & Upload</span>
+              <span className="inline-flex items-center gap-2"><UploadCloud size={16} /> YouTube Upload</span>
+            </button>
+            <button className="btn-muted disabled:opacity-40" disabled={!canDownload} onClick={openIgReview}>
+              <span className="inline-flex items-center gap-2"><UploadCloud size={16} /> Instagram Reel</span>
             </button>
             <button className="btn-muted" onClick={remove}>
               <span className="inline-flex items-center gap-2"><Trash2 size={16} /> Delete</span>
@@ -292,6 +423,26 @@ export default function VideoCard({ project, onDeleted }) {
                   <span className="inline-flex items-center gap-2"><RefreshCw size={16} /> {statusChecking ? 'Checking...' : 'Recheck YouTube'}</span>
                 </button>
               )}
+            </div>
+          )}
+
+          {currentProject.instagram?.status !== 'not_uploaded' && (
+            <div className="mt-4 rounded-2xl border border-mint/15 bg-ink/55 p-4 text-sm text-frost/70">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="status-pill border-mint/25 bg-mint/10 text-mint">Instagram Reel</span>
+                <span className="status-pill">{currentProject.instagram.status}</span>
+                {currentProject.instagram.statusCode && <span className="status-pill">Status: {currentProject.instagram.statusCode}</span>}
+              </div>
+              {currentProject.instagram.status === 'uploading' && <p className="mt-3 text-gold">Uploading Reel to Instagram... processing media container.</p>}
+              {currentProject.instagram.permalink && (
+                <a className="mt-3 inline-block break-all text-mint hover:text-gold" href={currentProject.instagram.permalink} rel="noreferrer" target="_blank">
+                  View Reel on Instagram: {currentProject.instagram.permalink}
+                </a>
+              )}
+              {currentProject.instagram.errorMessage && <p className="mt-2 text-ember">{currentProject.instagram.errorMessage}</p>}
+              <button className="btn-muted mt-3 disabled:opacity-50" disabled={igStatusChecking} onClick={refreshIgStatus} type="button">
+                <span className="inline-flex items-center gap-2"><RefreshCw size={16} /> {igStatusChecking ? 'Checking...' : 'Recheck Reel Status'}</span>
+              </button>
             </div>
           )}
         </div>
@@ -408,6 +559,170 @@ export default function VideoCard({ project, onDeleted }) {
 
               <button className="btn-primary disabled:opacity-50" disabled={!canStartYoutubeUpload} onClick={uploadToYoutube} type="button">
                 {uploading || youtubeUploadStatus === 'uploading' ? 'Uploading to YouTube...' : uploadButtonLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {igReviewOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 p-4 backdrop-blur-md">
+          <div className="mx-auto grid max-w-5xl gap-5 rounded-[2rem] border border-white/10 bg-ink p-5 shadow-2xl lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.1fr)]">
+            <div className="min-w-0">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="font-display text-2xl font-bold text-white">Instagram Reel Publish</h2>
+                <button className="btn-muted px-3" onClick={() => setIgReviewOpen(false)} type="button"><X size={18} /></button>
+              </div>
+
+              <div className="overflow-hidden rounded-[1.25rem] border border-white/10 bg-black/50 p-2">
+                <div className="mb-2 flex items-center justify-between text-xs text-frost/60">
+                  <span>Video Preview</span>
+                  <button
+                    className="text-mint hover:text-gold"
+                    onClick={() => setGridPreviewMode((prev) => !prev)}
+                    type="button"
+                  >
+                    {gridPreviewMode ? 'Switch to 9:16 Full View' : 'Switch to 1:1 Feed Grid Crop'}
+                  </button>
+                </div>
+                <div className={`relative mx-auto aspect-[9/16] max-h-[580px] w-full max-w-[310px] overflow-hidden rounded-[1rem] bg-black ${gridPreviewMode ? 'ring-2 ring-gold/70' : ''}`}>
+                  <video
+                    className="h-full w-full object-cover"
+                    controls
+                    poster={selectedCoverUrl ? coverUrl(selectedCoverUrl) : (currentProject.media.thumbFilename ? thumbUrl(currentProject.media.thumbFilename) : undefined)}
+                    src={mediaUrl(currentProject.media.videoFilename)}
+                  />
+                  {gridPreviewMode && (
+                    <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 aspect-square border-2 border-dashed border-gold/80 bg-gold/10 text-center font-bold text-gold">
+                      <span className="inline-block rounded bg-black/70 px-2 py-1 text-xs">1:1 Profile Grid Crop</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid min-w-0 gap-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-frost/70">
+                <p><span className="font-bold text-mint">Instagram Connection:</span> {igStatus?.connected ? `Connected (${igStatus.username || 'Business Account'})` : 'Not Connected'}</p>
+                {!igStatus?.connected && (
+                  <button className="btn-primary mt-3" onClick={connectInstagram} type="button">
+                    Connect Meta Instagram Account
+                  </button>
+                )}
+              </div>
+
+              {/* AI REEL COVER GENERATOR SECTION */}
+              <div className="rounded-2xl border border-mint/20 bg-mint/5 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold text-white">AI Reel Cover Generator</h3>
+                    <p className="text-xs text-frost/60">Generate 2 Pexels topic stock covers with overlay headlines and brand logo.</p>
+                  </div>
+                  <button
+                    className="btn-primary py-2 text-xs disabled:opacity-50"
+                    disabled={igCoversLoading}
+                    onClick={generateIgCovers}
+                    type="button"
+                  >
+                    {igCoversLoading ? 'Generating 2 Covers...' : 'Generate 2 Pexels Cover Options'}
+                  </button>
+                </div>
+
+                {currentProject.instagram?.covers?.length > 0 && (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {currentProject.instagram.covers.map((cover) => {
+                      const isSelected = (selectedCoverUrl || currentProject.instagram?.selectedCover) === cover.url;
+                      return (
+                        <div
+                          key={cover.id}
+                          className={`relative cursor-pointer overflow-hidden rounded-xl border p-2 transition-all ${
+                            isSelected ? 'border-mint bg-mint/15 shadow-lg' : 'border-white/10 bg-black/40 hover:border-white/30'
+                          }`}
+                          onClick={() => selectIgCover(cover.url)}
+                        >
+                          <div className="aspect-[9/16] overflow-hidden rounded-lg bg-black">
+                            <img className="h-full w-full object-cover" src={coverUrl(cover.url)} alt={cover.label} />
+                          </div>
+                          <p className="mt-2 text-center text-xs font-bold text-white truncate">{cover.label}</p>
+                          <p className="text-center text-[10px] text-frost/60 line-clamp-1">{cover.headline}</p>
+                          <a
+                            className="btn-muted mt-2 flex w-full items-center justify-center gap-1 text-center text-xs py-1.5 font-medium text-mint hover:text-gold"
+                            href={coverUrl(cover.url)}
+                            download={cover.filename || 'reel-cover.jpg'}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Download size={13} /> Download Cover JPG
+                          </a>
+                          {isSelected && (
+                            <span className="absolute top-3 right-3 rounded-full bg-mint p-1 text-black font-bold text-[10px]">
+                              ✓ Selected
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-sm font-bold text-frost/70">Reel Caption & Hashtags</label>
+                <div className="flex items-center gap-3">
+                  <button
+                    className="text-mint hover:text-gold text-xs font-medium inline-flex items-center gap-1 disabled:opacity-40"
+                    disabled={!igForm.caption}
+                    onClick={copyIgCaption}
+                    type="button"
+                  >
+                    <Copy size={13} /> {igCopied ? '✓ Copied!' : 'Copy Caption'}
+                  </button>
+                  <button className="text-action text-xs" disabled={igCaptionLoading} onClick={generateIgCaption} type="button">
+                    {igCaptionLoading ? 'Generating Caption...' : '✨ Generate AI Caption'}
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                className="field min-h-[240px] text-sm leading-relaxed text-white bg-black/60 border border-white/20 p-3.5 focus:border-mint resize-y"
+                value={igForm.caption}
+                onChange={(e) => setIgForm({ caption: e.target.value })}
+                placeholder="Write your Reel caption with emojis and hashtags..."
+              />
+
+              {igError && <p className="rounded-2xl bg-ember/15 p-3 text-sm text-ember">{igError}</p>}
+
+              {currentProject.instagram?.status !== 'not_uploaded' && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-frost/70">
+                  <p className="font-bold text-mint">Instagram Reel Status</p>
+                  <p className="mt-1">Status: {currentProject.instagram?.status}</p>
+                  {currentProject.instagram?.containerId && <p className="mt-1 text-xs">Container ID: {currentProject.instagram.containerId}</p>}
+                  {currentProject.instagram?.permalink && (
+                    <a className="mt-2 inline-block break-all text-mint hover:text-gold" href={currentProject.instagram.permalink} rel="noreferrer" target="_blank">
+                      {currentProject.instagram.permalink}
+                    </a>
+                  )}
+                  <button
+                    className="btn-muted mt-3 disabled:opacity-50"
+                    disabled={igStatusChecking}
+                    onClick={refreshIgStatus}
+                    type="button"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <RefreshCw size={16} /> {igStatusChecking ? 'Checking...' : 'Check Status'}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              <button
+                className="btn-primary disabled:opacity-50"
+                disabled={!canDownload || !igStatus?.connected || igUploading || currentProject.instagram?.status === 'uploading'}
+                onClick={uploadToInstagram}
+                type="button"
+              >
+                {igUploading || currentProject.instagram?.status === 'uploading' ? 'Publishing to Instagram Reel...' : 'Publish Reel to Instagram'}
               </button>
             </div>
           </div>

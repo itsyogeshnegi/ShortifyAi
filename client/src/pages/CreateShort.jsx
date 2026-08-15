@@ -10,7 +10,7 @@ function buildInitialForm() {
   return {
     topic: '',
     niche: niches[0],
-    tone: 'Energetic',
+    tone: 'Emotional',
     duration: 30,
     language: 'English'
   };
@@ -137,11 +137,14 @@ export default function CreateShort() {
           </div>
           <div className="form-grid">
           <label className="form-label">Tone<select className="field" value={form.tone} onChange={(e) => setForm({ ...form, tone: e.target.value })}>
-            <option>Energetic</option>
-            <option>Luxury</option>
-            <option>Funny</option>
-            <option>Educational</option>
-            <option>Dramatic</option>
+            <option>Emotional</option>
+            <option>Powerful</option>
+            <option>Calm</option>
+            <option>Dark</option>
+            <option>Hopeful</option>
+            <option>Inspirational</option>
+            <option>Deep</option>
+            <option>Storytelling</option>
           </select></label>
           <label className="form-label">Language<select className="field" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })}>
             <option value="English">English</option>

@@ -9,10 +9,14 @@ server/src/uploads/temp/*
 server/src/uploads/thumbs/*
 server/src/uploads/videos/*
 server/src/uploads/backgrounds/*
+server/src/uploads/covers/*
+server/src/uploads/mongodb-data/*
 server/src/uploads/tokens/*
 !server/src/uploads/audio/.gitkeep
 !server/src/uploads/temp/.gitkeep
 !server/src/uploads/thumbs/.gitkeep
 !server/src/uploads/videos/.gitkeep
 !server/src/uploads/backgrounds/.gitkeep
+!server/src/uploads/covers/.gitkeep
+!server/src/uploads/mongodb-data/.gitkeep
 !server/src/uploads/tokens/.gitkeep

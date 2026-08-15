@@ -159,7 +159,7 @@ export async function fetchInstagramMediaDetails(mediaId) {
   return data;
 }
 
-export async function uploadReelToInstagram({ videoUrl, caption }) {
+export async function uploadReelToInstagram({ videoUrl, caption, coverUrl }) {
   const token = await readToken();
   if (!token?.access_token || !token?.igUserId) {
     const error = new Error('Instagram account is not connected.');
@@ -170,13 +170,19 @@ export async function uploadReelToInstagram({ videoUrl, caption }) {
   const igUserId = token.igUserId;
 
   // Step 1: Create IG Reel Media Container
+  const params = {
+    media_type: 'REELS',
+    video_url: videoUrl,
+    caption: caption || '',
+    access_token: token.access_token
+  };
+
+  if (coverUrl) {
+    params.cover_url = coverUrl;
+  }
+
   const containerRes = await axios.post(`https://graph.facebook.com/v19.0/${igUserId}/media`, null, {
-    params: {
-      media_type: 'REELS',
-      video_url: videoUrl,
-      caption: caption || '',
-      access_token: token.access_token
-    },
+    params,
     timeout: 45000
   });
 

@@ -39,3 +39,14 @@ export const previewThumbnail = asyncHandler(async (req, res) => {
   res.setHeader('Cache-Control', 'private, max-age=300');
   res.sendFile(filePath);
 });
+
+export const previewCover = asyncHandler(async (req, res) => {
+  const { filename } = req.params;
+  assertSafeFilename(filename);
+
+  const filePath = path.join(storageDirs.covers, filename);
+  await fs.access(filePath);
+  res.setHeader('Content-Type', 'image/jpeg');
+  res.setHeader('Cache-Control', 'private, max-age=300');
+  res.sendFile(filePath);
+});

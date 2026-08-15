@@ -14,6 +14,7 @@ export const storageDirs = {
   thumbs: path.join(uploadsRoot, 'thumbs'),
   temp: path.join(uploadsRoot, 'temp'),
   tokens: path.join(uploadsRoot, 'tokens'),
+  covers: path.join(uploadsRoot, 'covers'),
   downloadedBackgrounds: path.join(uploadsRoot, 'backgrounds'),
   backgrounds: path.join(assetRoot, 'backgrounds'),
   fonts: path.join(assetRoot, 'fonts')

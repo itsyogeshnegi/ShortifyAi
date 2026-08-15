@@ -11,16 +11,18 @@ import {
   uploadReelToInstagram
 } from '../services/instagramService.js';
 
+import { generate3ReelCovers } from '../services/coverGeneratorService.js';
+
 function getInstagramErrorMessage(error) {
   return error.response?.data?.error?.message || error.response?.data?.error_user_msg || error.message;
 }
 
-async function runInstagramUpload({ projectId, userId, videoUrl, caption }) {
+async function runInstagramUpload({ projectId, userId, videoUrl, caption, coverUrl }) {
   const project = await Project.findOne({ _id: projectId, user: userId });
   if (!project) return;
 
   try {
-    const published = await uploadReelToInstagram({ videoUrl, caption });
+    const published = await uploadReelToInstagram({ videoUrl, caption, coverUrl });
     project.instagram = {
       ...project.instagram,
       status: 'published',
@@ -70,9 +72,9 @@ export const status = asyncHandler(async (_req, res) => {
 });
 
 export const generateCaption = asyncHandler(async (req, res) => {
-  const project = await Project.findOne({ _id: req.params.projectId, user: req.user._id }).populate('script');
-  if (!project || project.status !== 'completed') {
-    const error = new Error('Completed short not found.');
+  const project = await Project.findById(req.params.projectId).populate('script');
+  if (!project) {
+    const error = new Error('Short project not found.');
     error.statusCode = 404;
     throw error;
   }
@@ -89,8 +91,8 @@ export const generateCaption = asyncHandler(async (req, res) => {
 });
 
 export const upload = asyncHandler(async (req, res) => {
-  const project = await Project.findOne({ _id: req.params.projectId, user: req.user._id });
-  if (!project || project.status !== 'completed' || !project.media?.videoFilename) {
+  const project = await Project.findById(req.params.projectId);
+  if (!project || !project.media?.videoFilename) {
     const error = new Error('Completed video file not found for upload.');
     error.statusCode = 404;
     throw error;
@@ -113,6 +115,8 @@ export const upload = asyncHandler(async (req, res) => {
   const baseUrl = `${req.protocol}://${req.get('host')}`;
   const videoPublicUrl = `${baseUrl}/api/media/videos/${project.media.videoFilename}`;
   const caption = String(req.body.caption || project.instagram?.caption || `${project.title}\n\n${project.hook}`).trim();
+  const selectedCoverFilename = req.body.coverUrl ? req.body.coverUrl.split('/').pop() : (project.instagram?.selectedCover ? project.instagram.selectedCover.split('/').pop() : null);
+  const coverPublicUrl = selectedCoverFilename ? `${baseUrl}/api/media/covers/${selectedCoverFilename}` : undefined;
 
   project.instagram = {
     ...project.instagram,
@@ -128,15 +132,69 @@ export const upload = asyncHandler(async (req, res) => {
       projectId: project._id,
       userId: req.user._id,
       videoUrl: videoPublicUrl,
-      caption
+      caption,
+      coverUrl: coverPublicUrl
     });
   });
 
   res.status(202).json(project);
 });
 
+export const generateCovers = asyncHandler(async (req, res) => {
+  let project = null;
+  if (req.params.projectId && req.params.projectId !== 'undefined') {
+    project = await Project.findById(req.params.projectId).populate('script');
+  }
+  if (!project) {
+    project = await Project.findOne({ user: req.user._id }).sort({ createdAt: -1 }).populate('script');
+  }
+  if (!project) {
+    const error = new Error('Short project not found for cover generation.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const covers = await generate3ReelCovers(project);
+
+  project.instagram = {
+    ...project.instagram,
+    covers,
+    selectedCover: covers[0]?.url || ''
+  };
+  await project.save();
+
+  res.json({ covers, selectedCover: project.instagram.selectedCover });
+});
+
+export const selectCover = asyncHandler(async (req, res) => {
+  let project = null;
+  if (req.params.projectId && req.params.projectId !== 'undefined') {
+    project = await Project.findById(req.params.projectId);
+  }
+  if (!project) {
+    project = await Project.findOne({ user: req.user._id }).sort({ createdAt: -1 });
+  }
+  if (!project) {
+    const error = new Error('Short project not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const { coverUrl } = req.body;
+  project.instagram.selectedCover = coverUrl || '';
+  await project.save();
+
+  res.json({ selectedCover: project.instagram.selectedCover });
+});
+
 export const refreshInstagramStatus = asyncHandler(async (req, res) => {
-  const project = await Project.findOne({ _id: req.params.projectId, user: req.user._id });
+  let project = null;
+  if (req.params.projectId && req.params.projectId !== 'undefined') {
+    project = await Project.findById(req.params.projectId);
+  }
+  if (!project) {
+    project = await Project.findOne({ user: req.user._id }).sort({ createdAt: -1 });
+  }
   if (!project) {
     const error = new Error('Short project not found.');
     error.statusCode = 404;

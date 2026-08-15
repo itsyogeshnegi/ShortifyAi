@@ -69,6 +69,33 @@ const projectSchema = new mongoose.Schema(
       lastCheckedAt: Date,
       errorMessage: String
     },
+    instagram: {
+      status: {
+        type: String,
+        enum: ['not_uploaded', 'uploading', 'published', 'failed'],
+        default: 'not_uploaded'
+      },
+      containerId: String,
+      mediaId: String,
+      permalink: String,
+      caption: String,
+      selectedCover: String,
+      covers: [
+        {
+          id: String,
+          filename: String,
+          url: String,
+          headline: String,
+          style: String,
+          label: String
+        }
+      ],
+      uploadStartedAt: Date,
+      publishedAt: Date,
+      statusCode: String,
+      lastCheckedAt: Date,
+      errorMessage: String
+    },
     scheduledFor: Date,
     completedAt: Date
   },

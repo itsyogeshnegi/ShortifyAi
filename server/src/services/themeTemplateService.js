@@ -121,26 +121,14 @@ const themeTemplates = [
 ];
 
 const nicheTemplateIds = new Map([
-  ['Money / Success', 'money-success'],
-  ['Business / Entrepreneurship', 'money-success'],
-  ['Marketing / Social Media', 'money-success'],
-  ['AI / Tech', 'ai-tech'],
-  ['Gaming', 'ai-tech'],
-  ['Science / Space', 'ai-tech'],
+  ['Money', 'money-success'],
+  ['Mindset', 'motivation'],
   ['Motivation', 'motivation'],
-  ['Career / Productivity', 'motivation'],
-  ['Travel / Adventure', 'motivation'],
-  ['Facts / Knowledge', 'facts-knowledge'],
-  ['Education / Study', 'facts-knowledge'],
-  ['History / Mystery', 'facts-knowledge'],
-  ['Fitness / Bodybuilding', 'fitness-bodybuilding'],
-  ['Health / Wellness', 'fitness-bodybuilding'],
-  ['Food / Nutrition', 'fitness-bodybuilding'],
-  ['Sports', 'fitness-bodybuilding'],
-  ['Crypto / Finance', 'crypto-finance'],
-  ['Relationships / Psychology', 'relationships-psychology'],
-  ['Parenting / Family', 'relationships-psychology'],
-  ['Fashion / Beauty', 'relationships-psychology']
+  ['Relationships', 'relationships-psychology'],
+  ['Life Lessons', 'facts-knowledge'],
+  ['Emotional', 'relationships-psychology'],
+  ['Discipline', 'fitness-bodybuilding'],
+  ['Success', 'money-success']
 ]);
 
 function cleanSceneText(value) {

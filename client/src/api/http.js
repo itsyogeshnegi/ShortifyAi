@@ -21,3 +21,10 @@ export function mediaUrl(filename) {
 export function thumbUrl(filename) {
   return `${api.defaults.baseURL}/media/thumbs/${filename}`;
 }
+
+export function coverUrl(urlOrFilename) {
+  if (!urlOrFilename) return '';
+  if (urlOrFilename.startsWith('http')) return urlOrFilename;
+  const filename = urlOrFilename.includes('/') ? urlOrFilename.split('/').pop() : urlOrFilename;
+  return `${api.defaults.baseURL}/media/covers/${filename}`;
+}

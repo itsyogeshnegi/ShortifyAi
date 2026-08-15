@@ -9,6 +9,7 @@ import shortRoutes from './routes/shortRoutes.js';
 import downloadRoutes from './routes/downloadRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
 import youtubeRoutes from './routes/youtubeRoutes.js';
+import instagramRoutes from './routes/instagramRoutes.js';
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
 
 export function createApp() {
@@ -30,6 +31,7 @@ export function createApp() {
   app.use('/api/download', downloadRoutes);
   app.use('/api/media', mediaRoutes);
   app.use('/api/youtube', youtubeRoutes);
+  app.use('/api/instagram', instagramRoutes);
   app.use(notFound);
   app.use(errorHandler);
 

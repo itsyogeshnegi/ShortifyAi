@@ -36,12 +36,16 @@ export const createShort = asyncHandler(async (req, res) => {
 });
 
 export const listShorts = asyncHandler(async (req, res) => {
-  const projects = await Project.find({ user: req.user._id }).sort({ createdAt: -1 }).populate('script');
+  const filter = process.env.AUTH_DISABLED === 'true' ? {} : { user: req.user._id };
+  const projects = await Project.find(filter).sort({ createdAt: -1 }).populate('script');
   res.json(projects);
 });
 
 export const getShort = asyncHandler(async (req, res) => {
-  const project = await Project.findOne({ _id: req.params.id, user: req.user._id }).populate('script');
+  const project = process.env.AUTH_DISABLED === 'true'
+    ? await Project.findById(req.params.id).populate('script')
+    : await Project.findOne({ _id: req.params.id, user: req.user._id }).populate('script');
+
   if (!project) {
     const error = new Error('Short not found.');
     error.statusCode = 404;
@@ -51,7 +55,9 @@ export const getShort = asyncHandler(async (req, res) => {
 });
 
 export const deleteShort = asyncHandler(async (req, res) => {
-  const project = await Project.findOne({ _id: req.params.id, user: req.user._id });
+  const project = process.env.AUTH_DISABLED === 'true'
+    ? await Project.findById(req.params.id)
+    : await Project.findOne({ _id: req.params.id, user: req.user._id });
   if (!project) {
     const error = new Error('Short not found.');
     error.statusCode = 404;

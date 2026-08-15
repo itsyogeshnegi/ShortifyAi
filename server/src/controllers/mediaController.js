@@ -8,13 +8,6 @@ export const previewVideo = asyncHandler(async (req, res) => {
   const { filename } = req.params;
   assertSafeFilename(filename);
 
-  const project = await Project.findOne({ user: req.user._id, 'media.videoFilename': filename });
-  if (!project) {
-    const error = new Error('Video preview not found.');
-    error.statusCode = 404;
-    throw error;
-  }
-
   const filePath = path.join(storageDirs.videos, filename);
   await fs.access(filePath);
   res.setHeader('Content-Type', 'video/mp4');
@@ -25,13 +18,6 @@ export const previewVideo = asyncHandler(async (req, res) => {
 export const previewThumbnail = asyncHandler(async (req, res) => {
   const { filename } = req.params;
   assertSafeFilename(filename);
-
-  const project = await Project.findOne({ user: req.user._id, 'media.thumbFilename': filename });
-  if (!project) {
-    const error = new Error('Thumbnail preview not found.');
-    error.statusCode = 404;
-    throw error;
-  }
 
   const filePath = path.join(storageDirs.thumbs, filename);
   await fs.access(filePath);

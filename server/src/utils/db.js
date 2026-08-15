@@ -9,24 +9,14 @@ export async function connectDatabase() {
     console.log('MongoDB connected');
   } catch (error) {
     if (error.name === 'MongooseServerSelectionError' || error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED')) {
-      console.warn('Local MongoDB 127.0.0.1:27017 connection refused. Initializing persistent in-memory Mongo server...');
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const { uploadsRoot } = await import('./storage.js');
-      const mongoDataDir = path.join(uploadsRoot, 'mongodb-data');
-      await fs.mkdir(mongoDataDir, { recursive: true });
-
+      console.warn('Local MongoDB 127.0.0.1:27017 connection refused. Initializing in-memory Mongo server...');
       const { MongoMemoryServer } = await import('mongodb-memory-server');
       const mongod = await MongoMemoryServer.create({
-        instance: {
-          dbName: 'shortifyai',
-          dbPath: mongoDataDir,
-          storageEngine: 'wiredTiger'
-        }
+        instance: { dbName: 'shortifyai' }
       });
       const memoryUri = mongod.getUri();
       await mongoose.connect(memoryUri);
-      console.log(`Persistent In-Memory MongoDB connected at ${memoryUri}`);
+      console.log(`In-Memory MongoDB connected at ${memoryUri}`);
       return;
     }
 

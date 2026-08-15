@@ -33,7 +33,7 @@ export async function runFfmpeg(args, options = {}) {
       let stdoutTail = '';
       let settled = false;
       const child = spawn(getFfmpegPath(), ffmpegArgs, { windowsHide: true });
-      const timeoutMs = options.timeout || 180000;
+      const timeoutMs = options.timeout || 300000;
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;

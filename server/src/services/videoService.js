@@ -7,21 +7,30 @@ import { runFfmpeg } from '../utils/ffmpeg.js';
 import { createVisualTheme } from './visualThemeService.js';
 import { createSoundEffectsTrack } from './soundDesignService.js';
 
-const logoPath = path.resolve('src/utils/logo/logo.png');
+async function getLogoPath() {
+  const candidates = [
+    path.resolve('server/src/utils/logo/logo.png'),
+    path.resolve('src/utils/logo/logo.png'),
+    path.resolve('server/src/assets/logo.png'),
+    path.resolve('src/assets/logo.png')
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // Check next candidate
+    }
+  }
+
+  return null;
+}
 
 async function pickBackground() {
   const files = await fs.readdir(storageDirs.backgrounds);
   const videos = files.filter((file) => /\.(mp4|mov|mkv|webm)$/i.test(file));
   return videos.length ? [path.join(storageDirs.backgrounds, videos[0])] : [];
-}
-
-async function getLogoPath() {
-  try {
-    await fs.access(logoPath);
-    return logoPath;
-  } catch {
-    return null;
-  }
 }
 
 function normalizePathForFilter(filePath) {

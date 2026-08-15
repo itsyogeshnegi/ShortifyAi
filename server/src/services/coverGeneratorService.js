@@ -8,15 +8,24 @@ import { storageDirs } from '../utils/storage.js';
 
 const PEXELS_PHOTO_SEARCH_URL = 'https://api.pexels.com/v1/search';
 const DEFAULT_PEXELS_KEY = process.env.PEXELS_API_KEY || '563492ad6f9170000100000155b4122d26d744b6b663b018590c4273';
-const logoPath = path.resolve('src/utils/logo/logo.png');
-
 async function getLogoPath() {
-  try {
-    await fs.access(logoPath);
-    return logoPath;
-  } catch {
-    return null;
+  const candidates = [
+    path.resolve('server/src/utils/logo/logo.png'),
+    path.resolve('src/utils/logo/logo.png'),
+    path.resolve('server/src/assets/logo.png'),
+    path.resolve('src/assets/logo.png')
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // Check next candidate
+    }
   }
+
+  return null;
 }
 
 function normalizePathForFilter(filePath) {

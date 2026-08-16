@@ -180,7 +180,7 @@ export async function compositeReelCover({ framePath, headline, style, logo, out
   const inputs = ['-y', '-i', framePath];
   if (logo) {
     inputs.push('-i', logo);
-    filterComplex += `;[1:v]format=rgba,scale=140:-1,colorchannelmixer=aa=0.9[logo];[vtxt][logo]overlay=48:48:format=auto[vout]`;
+    filterComplex += `;[1:v]format=rgba,scale=140:-1,colorchannelmixer=aa=0.9[logo];[vtxt][logo]overlay=W-w-48:48:format=auto[vout]`;
   } else {
     filterComplex += `;[vtxt]null[vout]`;
   }

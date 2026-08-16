@@ -105,7 +105,7 @@ function buildFilterComplex({ sceneSlots, segmentTimes, subtitlePath, duration, 
 
   if (watermarkLogo) {
     filters.push(`[${sfxIndex + 1}:v]format=rgba,scale=130:-1,colorchannelmixer=aa=0.85[logo]`);
-    filters.push(`[vsub][logo]overlay=36:36:format=auto[vout]`);
+    filters.push(`[vsub][logo]overlay=W-w-36:36:format=auto[vout]`);
   } else {
     filters.push('[vsub]null[vout]');
   }

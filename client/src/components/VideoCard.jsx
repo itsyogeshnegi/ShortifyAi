@@ -619,12 +619,22 @@ export default function VideoCard({ project, onDeleted }) {
                     <p className="text-xs text-frost/60">Generate 2 Pexels topic stock covers with overlay headlines and brand logo.</p>
                   </div>
                   <button
-                    className="btn-primary py-2 text-xs disabled:opacity-50"
+                    className="btn-primary py-2 text-xs disabled:opacity-50 inline-flex items-center gap-1.5"
                     disabled={igCoversLoading}
                     onClick={generateIgCovers}
                     type="button"
                   >
-                    {igCoversLoading ? 'Generating 2 Covers...' : 'Generate 2 Pexels Cover Options'}
+                    {igCoversLoading ? (
+                      <>
+                        <RefreshCw className="animate-spin" size={13} /> Generating New Covers...
+                      </>
+                    ) : currentProject.instagram?.covers?.length > 0 ? (
+                      <>
+                        <RefreshCw size={13} /> Regenerate New Covers
+                      </>
+                    ) : (
+                      'Generate 2 Pexels Cover Options'
+                    )}
                   </button>
                 </div>
 

@@ -148,32 +148,63 @@ export async function extractVideoFrame({ videoPath, timestamp, outputPath }) {
   ]);
 }
 
-export async function compositeReelCover({ framePath, headline, style, logo, outputPath }) {
-  const fontPath = path.resolve('src/assets/fonts/Inter-Bold.ttf');
-  let hasCustomFont = false;
-  try {
-    await fs.access(fontPath);
-    hasCustomFont = true;
-  } catch {
-    hasCustomFont = false;
-  }
+function formatHeadlineForCover(text, maxCharsPerLine = 16) {
+  const words = String(text || '').toUpperCase().trim().split(/\s+/);
+  const lines = [];
+  let current = [];
 
-  const fontOpt = hasCustomFont ? `:fontfile='${normalizePathForFilter(fontPath)}'` : '';
-  const escapedHeadline = headline.replace(/'/g, "'\\\\''").replace(/:/g, '\\:');
+  for (const word of words) {
+    if ((current.join(' ') + ' ' + word).trim().length <= maxCharsPerLine) {
+      current.push(word);
+    } else {
+      if (current.length) lines.push(current.join(' '));
+      current = [word];
+    }
+  }
+  if (current.length) lines.push(current.join(' '));
+  return lines.slice(0, 2).join('\n');
+}
+
+async function getSystemFontOption() {
+  const candidates = [
+    'C:/Windows/Fonts/arialbd.ttf',
+    'C:/Windows/Fonts/impact.ttf',
+    'C:/Windows/Fonts/segoeuib.ttf',
+    'C:/Windows/Fonts/arial.ttf'
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return `:fontfile='${normalizePathForFilter(candidate)}'`;
+    } catch {}
+  }
+  return '';
+}
+
+export async function compositeReelCover({ framePath, headline, style, logo, outputPath }) {
+  const fontOpt = await getSystemFontOption();
+  const cleanHeadline = String(headline || '')
+    .toUpperCase()
+    .replace(/[^\w\s\u0900-\u097F]/g, '')
+    .trim();
+
+  const formattedHeadline = formatHeadlineForCover(cleanHeadline);
+  const escapedHeadline = formattedHeadline.replace(/'/g, "'\\\\''").replace(/:/g, '\\:');
 
   let filterComplex = '';
 
   if (style === 'viral_hook') {
+    // Style 1: High-Impact Gold & White Bold Typography (Centered in 1:1 Feed View)
     filterComplex = [
       `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg]`,
-      `[bg]drawbox=x=0:y=0:w=1080:h=600:color=black@0.65:t=fill[box]`,
-      `[box]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=0xFFD700:fontsize=64:x=(w-text_w)/2:y=240:box=1:boxcolor=black@0.75:boxborderw=20[vtxt]`
+      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=0xFFD700:fontsize=72:line_spacing=24:x=(w-text_w)/2:y=(h-text_h)/2:box=1:boxcolor=black@0.65:boxborderw=32:borderw=4:bordercolor=black[vtxt]`
     ].join(';');
   } else {
+    // Style 2: Ultra-Clean Crisp White Bold Typography (Centered in 1:1 Feed View)
     filterComplex = [
       `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg]`,
-      `[bg]drawbox=x=0:y=660:w=1080:h=600:color=black@0.75:t=fill[box]`,
-      `[box]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=white:fontsize=68:x=(w-text_w)/2:y=900:box=1:boxcolor=0x111111@0.85:boxborderw=24[vtxt]`
+      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=white:fontsize=72:line_spacing=24:x=(w-text_w)/2:y=(h-text_h)/2:box=1:boxcolor=black@0.65:boxborderw=32:borderw=4:bordercolor=black[vtxt]`
     ].join(';');
   }
 

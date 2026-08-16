@@ -81,21 +81,24 @@ function normalizeVoiceScript({ hook, fullScript, cta, fallbackTopic }) {
   const source = [hook, fullScript, cta]
     .filter(Boolean)
     .join('. ')
-    .replace(/[–—]/g, '...')
+    .replace(/[–—]/g, ', ')
     .replace(/\s+/g, ' ')
     .trim();
 
   if (!source) {
-    return `If you're thinking about ${fallbackTopic}, stay with me... this is simpler than it looks.`;
+    return `If you are thinking about ${fallbackTopic}, stay with me. This is simpler than it looks.`;
   }
 
   return source
-    .replace(/:\s*/g, '... ')
-    .replace(/;\s*/g, '... ')
-    .replace(/,\s*/g, ', ')
-    .replace(/\.\s+/g, '... ')
-    .replace(/\?\s+/g, '? ... ')
-    .replace(/!\s+/g, '! ... ')
+    .replace(/[*_~#`]/g, '')
+    .replace(/\[.*?\]/g, '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/\s*:\s*/g, '. ')
+    .replace(/\s*;\s*/g, ', ')
+    .replace(/\.{2,}/g, '.')
+    .replace(/\s+([,.!?])/g, '$1')
+    .replace(/([,.!?])(?=\S)/g, '$1 ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 

@@ -27,8 +27,23 @@ const TICKS_PER_SECOND = 10000000;
 
 function normalizeSpeechText(scriptText) {
   return String(scriptText || '')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/[*_~#`>]/g, '')
+    .replace(/\[.*?\]/g, '')
+    .replace(/\(.*?\)/g, '')
     .replace(/[\u2013\u2014]/g, ', ')
-    .replace(/\.{2,}/g, ', ')
+    .replace(/&/g, ' and ')
+    .replace(/%/g, ' percent ')
+    .replace(/\$/g, ' dollars ')
+    .replace(/₹/g, ' rupees ')
+    .replace(/\+/g, ' plus ')
+    .replace(/@/g, ' at ')
+    .replace(/\bvs\.?\b/gi, 'versus')
+    .replace(/\be\.?g\.?\b/gi, 'for example')
+    .replace(/\bi\.?e\.?\b/gi, 'that is')
+    .replace(/\b10x\b/gi, 'ten times')
+    .replace(/\b100%\b/gi, 'one hundred percent')
+    .replace(/\.{2,}/g, '.')
     .replace(/\s+([,.!?])/g, '$1')
     .replace(/([,.!?])(?=\S)/g, '$1 ')
     .replace(/\s+/g, ' ')
@@ -179,14 +194,15 @@ async function generateSarvamVoice(speechText, title, language) {
   if (!apiKey) throw new Error('SARVAM_API_KEY is not configured.');
 
   const model = process.env.SARVAM_MODEL || 'bulbul:v3';
+  const cleanSpeechText = normalizeSpeechText(speechText);
+  const containsDevanagari = /[\u0900-\u097F]/.test(cleanSpeechText);
   const langLower = String(language || '').toLowerCase();
-  const isEnglish = langLower.includes('english') || langLower.startsWith('en');
+  const isHindi = containsDevanagari || langLower.includes('hindi') || langLower.startsWith('hi');
 
-  const langCode = isEnglish ? 'en-IN' : 'hi-IN';
-  const speaker = isEnglish ? (process.env.SARVAM_SPEAKER_EN || 'tarun') : (process.env.SARVAM_SPEAKER_HI || 'shubh');
+  const langCode = isHindi ? 'hi-IN' : 'en-IN';
+  const speaker = isHindi ? (process.env.SARVAM_SPEAKER_HI || 'shubh') : (process.env.SARVAM_SPEAKER_EN || 'tarun');
   const pace = Number(process.env.SARVAM_PACE || 0.90);
 
-  const cleanSpeechText = normalizeSpeechText(speechText);
   const cacheDir = path.join(storageDirs.audio, 'sarvam_cache');
   await fs.mkdir(cacheDir, { recursive: true });
 

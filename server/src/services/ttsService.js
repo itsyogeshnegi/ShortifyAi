@@ -2,8 +2,11 @@ import { execFile } from 'child_process';
 import fs from 'fs/promises';
 import { promisify } from 'util';
 import path from 'path';
+import crypto from 'crypto';
 import slugify from 'slugify';
+import { SarvamAIClient } from 'sarvamai';
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
+import { probeAudioDuration } from '../utils/ffmpeg.js';
 import { storageDirs } from '../utils/storage.js';
 
 const execFileAsync = promisify(execFile);
@@ -171,9 +174,80 @@ $speak.Dispose();
   return { filename: basename, path: outputPath, timeline: [], duration: null, speechText };
 }
 
+async function generateSarvamVoice(speechText, title, language) {
+  const apiKey = String(process.env.SARVAM_API_KEY || '').trim();
+  if (!apiKey) throw new Error('SARVAM_API_KEY is not configured.');
+
+  const model = process.env.SARVAM_MODEL || 'bulbul:v3';
+  const langLower = String(language || '').toLowerCase();
+  const isEnglish = langLower.includes('english') || langLower.startsWith('en');
+
+  const langCode = isEnglish ? 'en-IN' : 'hi-IN';
+  const speaker = isEnglish ? (process.env.SARVAM_SPEAKER_EN || 'tarun') : (process.env.SARVAM_SPEAKER_HI || 'shubh');
+  const pace = Number(process.env.SARVAM_PACE || 0.90);
+
+  const cleanSpeechText = normalizeSpeechText(speechText);
+  const cacheDir = path.join(storageDirs.audio, 'sarvam_cache');
+  await fs.mkdir(cacheDir, { recursive: true });
+
+  const normalizedKey = cleanSpeechText.toLowerCase().replace(/[^\w\u0900-\u097F]/g, '');
+  const hashKey = crypto.createHash('md5').update(`${normalizedKey}_${speaker}_${model}_${langCode}_${pace}`).digest('hex');
+  const cacheFilePath = path.join(cacheDir, `${hashKey}.wav`);
+  const basename = `${Date.now()}-${slugify(title || 'short-audio', { lower: true, strict: true })}.wav`;
+  const outputPath = path.join(storageDirs.audio, basename);
+
+  // Single-Hit Protection: If cached audio file exists on disk, reuse immediately without calling Sarvam API
+  try {
+    await fs.access(cacheFilePath);
+    console.log(`[Sarvam AI] Reusing cached voice audio for text hash '${hashKey}' (0 API hits used).`);
+    await fs.copyFile(cacheFilePath, outputPath);
+    const cachedDuration = await probeAudioDuration(outputPath);
+    return { filename: basename, path: outputPath, timeline: [], duration: cachedDuration, speechText: cleanSpeechText };
+  } catch {
+    // Cache miss - proceed to single API hit
+  }
+
+  console.log(`[Sarvam AI] Making single API hit to Sarvam AI TTS (${model}, speaker: ${speaker}, lang: ${langCode}, pace: ${pace})...`);
+
+  const client = new SarvamAIClient({
+    apiSubscriptionKey: apiKey
+  });
+
+  const response = await client.textToSpeech.convert({
+    text: cleanSpeechText,
+    target_language_code: langCode,
+    speaker,
+    model,
+    pace,
+    speech_sample_rate: 22050
+  });
+
+  const base64Audio = response.audios?.[0];
+  if (!base64Audio) {
+    throw new Error('Sarvam AI text-to-speech API returned empty audio response.');
+  }
+
+  const audioBuffer = Buffer.from(base64Audio, 'base64');
+  await fs.writeFile(cacheFilePath, audioBuffer);
+  await fs.writeFile(outputPath, audioBuffer);
+
+  const exactDuration = await probeAudioDuration(outputPath);
+  console.log(`[Sarvam AI] Successfully synthesized human voice audio (${exactDuration || 'N/A'}s) and cached to '${hashKey}.wav'.`);
+  return { filename: basename, path: outputPath, timeline: [], duration: exactDuration, speechText: cleanSpeechText };
+}
+
 export async function generateVoiceAudio(scriptText, title, language = 'English') {
   const speechText = normalizeSpeechText(scriptText);
-  const provider = String(process.env.TTS_PROVIDER || 'edge').toLowerCase();
+  const provider = String(process.env.TTS_PROVIDER || 'sarvam').toLowerCase();
+  const sarvamEnabled = process.env.SARVAM_ENABLED !== 'false';
+
+  if (sarvamEnabled && (provider === 'sarvam' || !!process.env.SARVAM_API_KEY)) {
+    try {
+      return await generateSarvamVoice(speechText, title, language);
+    } catch (error) {
+      console.warn(`[Sarvam AI] TTS failed (${error.message}); falling back to MsEdgeTTS.`);
+    }
+  }
 
   if (provider === 'sapi') {
     return generateSapiVoice(speechText, title);

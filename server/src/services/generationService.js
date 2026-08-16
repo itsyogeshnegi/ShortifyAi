@@ -41,7 +41,10 @@ export async function runGenerationPipeline({ userId, projectId, input }) {
     await updateProgress(project, 'voice', 45, 'Creating a natural voiceover.');
 
     const audio = await generateVoiceAudio(generated.voiceScript, generated.title, input.language);
-    const renderDuration = Math.max(Number(input.duration), Number(audio.duration || 0) + 0.25);
+    const requestedDuration = Number(input.duration) || 30;
+    const renderDuration = audio.duration
+      ? Number((audio.duration + 0.8).toFixed(2))
+      : requestedDuration;
     await updateProgress(project, 'sound', 55, 'Adding ambient bed and aggressive motion SFX.');
     ambient = await createAmbientBed({
       themeTemplate: input.themeTemplate,
@@ -59,6 +62,7 @@ export async function runGenerationPipeline({ userId, projectId, input }) {
       scriptText: audio.speechText,
       subtitleTimeline: audio.timeline,
       duration: renderDuration,
+      speechDuration: audio.duration,
       audioPath: audio.path,
       ambientAudioPath: ambient.path,
       topic: input.topic,

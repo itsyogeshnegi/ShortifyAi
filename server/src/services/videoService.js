@@ -118,6 +118,7 @@ export async function generateShortVideo({
   scriptText,
   subtitleTimeline = [],
   duration,
+  speechDuration,
   audioPath,
   ambientAudioPath,
   topic,
@@ -129,7 +130,7 @@ export async function generateShortVideo({
 }) {
   const filename = `${Date.now()}-${slugify(title || 'shortifyai-video', { lower: true, strict: true })}.mp4`;
   const outputPath = path.join(storageDirs.videos, filename);
-  const subtitle = await createSubtitleFile(scriptText, duration, title, subtitleTimeline);
+  const subtitle = await createSubtitleFile(scriptText, speechDuration || duration, title, subtitleTimeline);
   const sfxTrack = await createSoundEffectsTrack({
     title,
     duration,

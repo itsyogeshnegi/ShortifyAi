@@ -9,11 +9,43 @@ function parseJsonFromText(text) {
   const match = clean.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('Ollama response did not contain JSON.');
 
+  const rawJsonStr = match[0];
+
   try {
-    return JSON.parse(match[0]);
+    return JSON.parse(rawJsonStr);
   } catch {
-    const repaired = match[0].replace(/,\s*([}\]])/g, '$1');
-    return JSON.parse(repaired);
+    // Attempt Repair 1: Remove trailing commas before } or ]
+    let repaired = rawJsonStr.replace(/,\s*([}\]])/g, '$1');
+
+    // Attempt Repair 2: Fix unescaped quotes inside hashtag arrays e.g. ["#mindset", #psychology"]
+    repaired = repaired.replace(/#([\w\u0900-\u097F]+)"/g, '#$1');
+
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      // Attempt Repair 3: Extract fields using regex fallback
+      const extractField = (key) => {
+        const m = rawJsonStr.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`, 'i'));
+        return m ? m[1] : '';
+      };
+
+      const title = extractField('title');
+      const hook = extractField('hook');
+      const fullScript = extractField('fullScript') || extractField('script');
+      const voiceScript = extractField('voiceScript');
+      const cta = extractField('cta');
+
+      const tagsMatch = rawJsonStr.match(/"hashtags"\s*:\s*\[([\s\S]*?)\]/i);
+      const hashtags = tagsMatch
+        ? Array.from(tagsMatch[1].matchAll(/#[\w\u0900-\u097F]+/g)).map((m) => m[0])
+        : ['#shorts', '#viral', '#mindset'];
+
+      if (title || hook || fullScript) {
+        return { title, hook, fullScript, voiceScript, cta, hashtags };
+      }
+
+      throw new Error(`Invalid JSON returned from AI model: ${rawJsonStr.slice(0, 100)}...`);
+    }
   }
 }
 
@@ -204,6 +236,13 @@ async function requestOllamaGenerate({ prompt, model, isRetry = false }) {
 
 export async function generateScriptWithOllama(input) {
   const model = getOllamaModel();
+  const durationSec = Number(input.duration) || 30;
+  const wordBudget = durationSec <= 15
+    ? '35-42 spoken words (targeting ~13-14 seconds of speech)'
+    : durationSec <= 30
+      ? '72-82 spoken words (targeting ~27-29 seconds of speech)'
+      : '140-155 spoken words (targeting ~54-58 seconds of speech)';
+
   const prompt = `
 You are ShortifyAI, a YouTube Shorts strategist.
 Return only valid JSON with this exact shape:
@@ -216,17 +255,18 @@ Return only valid JSON with this exact shape:
   "hashtags": ["#tag1", "#tag2", "#tag3"]
 }
 
-Create a ${input.duration} second short in ${input.language}.
+Create a ${durationSec} second short in ${input.language}.
 Topic: ${input.topic}
 Niche: ${input.niche}
 Tone: ${input.tone}
+CRITICAL COST OPTIMIZATION: Keep voiceScript STRICTLY within ${wordBudget}. No fluff, no filler intros, get straight to the value.
 Write like you are giving practical advice to a smart peer.
-Keep it conversational, slightly technical, accessible, and grounded.
-Avoid guru language, luxury-mansion flexing, fake hype, and lecture tone.
+Keep it conversational, punchy, accessible, and grounded.
+Avoid guru language, luxury-mansion flexing, and fake hype.
 Use contractions, shorter sentences, and varied rhythm.
 The hook should sound natural, not salesy.
 fullScript should stay clean and readable.
-voiceScript should be optimized for TTS with micro-pauses using commas and ellipses for emphasis.
+voiceScript should be concise and optimized for TTS with natural commas for emphasis.
 Make it punchy, retention-focused, and safe for general audiences.
 `;
 

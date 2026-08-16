@@ -40,13 +40,27 @@ function splitIntoChunks(scriptText) {
 
 function buildSubtitleTimeline(scriptText, duration) {
   const chunks = splitIntoChunks(scriptText);
+  if (!chunks.length) return [];
+
+  const weights = chunks.map((chunk) => {
+    const wordCount = chunk.split(/\s+/).filter(Boolean).length;
+    const charCount = chunk.length;
+    return wordCount * 1.8 + charCount;
+  });
+
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  const speechDuration = Math.max(1, Number(duration) - 0.25);
+
+  let currentStart = 0;
   return chunks.map((chunk, index) => {
-    const start = (duration / chunks.length) * index;
-    const end = (duration / chunks.length) * (index + 1);
+    const chunkDur = (weights[index] / totalWeight) * speechDuration;
+    const start = currentStart;
+    const end = Math.min(duration, start + chunkDur);
+    currentStart = end;
     return {
       text: chunk,
-      start,
-      end
+      start: Number(start.toFixed(2)),
+      end: Number(end.toFixed(2))
     };
   });
 }

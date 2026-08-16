@@ -97,3 +97,29 @@ export async function runFfmpeg(args, options = {}) {
     throw error;
   }
 }
+
+export async function probeAudioDuration(audioPath) {
+  try {
+    const ffmpegArgs = ['-hide_banner', '-i', audioPath];
+    return await new Promise((resolve) => {
+      const child = spawn(getFfmpegPath(), ffmpegArgs, { windowsHide: true });
+      let output = '';
+      child.stderr?.on('data', (d) => (output += d.toString()));
+      child.stdout?.on('data', (d) => (output += d.toString()));
+      child.on('close', () => {
+        const match = output.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
+        if (match) {
+          const hours = parseFloat(match[1]);
+          const minutes = parseFloat(match[2]);
+          const seconds = parseFloat(match[3]);
+          resolve(Number((hours * 3600 + minutes * 60 + seconds).toFixed(2)));
+        } else {
+          resolve(null);
+        }
+      });
+      child.on('error', () => resolve(null));
+    });
+  } catch {
+    return null;
+  }
+}

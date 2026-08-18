@@ -141,7 +141,7 @@ export async function generateShortVideo({
   const watermarkLogo = await getLogoPath();
   const visualTheme = createVisualTheme({ topic, niche, tone, duration, themeTemplate });
   const pickedBackgrounds = backgroundPaths.length > 0 ? backgroundPaths : await pickBackground();
-  const sceneCount = requestedSceneCount || (Number(duration) === 15 ? 3 : Number(duration) === 30 ? 5 : 7);
+  const sceneCount = requestedSceneCount || (Number(duration) === 15 ? 3 : Number(duration) === 30 ? 5 : Number(duration) === 45 ? 6 : 7);
   const sceneSlots = buildSceneSlots({ clipPaths: pickedBackgrounds, sceneCount });
   const segmentTimes = segmentDurations(duration, sceneCount);
   const sourceArgs = buildVideoInputs({ sceneSlots, visualTheme });

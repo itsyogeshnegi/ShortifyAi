@@ -152,7 +152,7 @@ export default function CreateShort() {
           </select></label>
           </div>
           <fieldset className="form-group"><legend className="form-label">Duration</legend><div className="segment-control">
-            {[15, 30, 60].map((duration) => <button className={Number(form.duration) === duration ? 'is-active' : ''} key={duration} onClick={() => setForm({ ...form, duration })} type="button">{duration} sec</button>)}
+            {[15, 30, 45, 60].map((duration) => <button className={Number(form.duration) === duration ? 'is-active' : ''} key={duration} onClick={() => setForm({ ...form, duration })} type="button">{duration} sec</button>)}
           </div></fieldset>
           <button className="btn-primary submit-button disabled:opacity-50" disabled={loading}><Sparkles size={17} />{loading ? 'Generating short...' : 'Generate short'}</button>
           {error && <p className="inline-error">{error}</p>}

@@ -244,7 +244,9 @@ export async function generateScriptWithOllama(input) {
     ? '35-42 spoken words (targeting ~13-14 seconds of speech)'
     : durationSec <= 30
       ? '72-82 spoken words (targeting ~27-29 seconds of speech)'
-      : '140-155 spoken words (targeting ~54-58 seconds of speech)';
+      : durationSec <= 45
+        ? '105-118 spoken words (targeting ~40-43 seconds of speech)'
+        : '140-155 spoken words (targeting ~54-58 seconds of speech)';
 
   const prompt = `
 You are ShortifyAI, a YouTube Shorts strategist.
@@ -294,6 +296,17 @@ Make it punchy, retention-focused, and safe for general audiences.
 }
 
 const fallbackTopicMap = {
+  'Money / Success': [
+    'The 1% Money Rule Nobody Taught You',
+    'Stop Saving Money Like This',
+    '3 Assets Rich People Buy First',
+    'How Small Daily Habits Create Wealth',
+    'The Hidden Trap of Salary Income',
+    'Mastering Cash Flow in Your 20s',
+    'Retire at 30: The Honest Truth',
+    '5 Money Lies You Were Told As a Kid',
+    'Why Your Savings Account is Losing Money'
+  ],
   Money: [
     'The 1% Money Rule Nobody Taught You',
     'Stop Saving Money Like This',
@@ -302,13 +315,13 @@ const fallbackTopicMap = {
     'The Hidden Trap of Salary Income',
     'Mastering Cash Flow in Your 20s'
   ],
-  Mindset: [
-    'The Mental Shift That Changes Everything',
-    'Why Your Brain Resists Growth',
-    'Overcoming Self-Doubt Forever',
-    'The Quiet Power of High Standards',
-    'How Winners Handle Silence and Loneliness',
-    'Reprogramming Your Daily Thinking'
+  'AI / Tech': [
+    '5 AI Tools That Feel Illegal to Know',
+    'How AI Will Replace 80% of Office Jobs',
+    'The Dark Truth About AI Privacy',
+    '3 Automations That Make $100/Day',
+    'Why Coding Will Look Different in 2 Years',
+    'The Secret Algorithm Behind Social Media'
   ],
   Motivation: [
     'When You Feel Like Giving Up',
@@ -318,6 +331,23 @@ const fallbackTopicMap = {
     'Build The Life You Never Need a Vacation From',
     'The Harsh Truth About Hard Work'
   ],
+  Mindset: [
+    'The Mental Shift That Changes Everything',
+    'Why Your Brain Resists Growth',
+    'Overcoming Self-Doubt Forever',
+    'The Quiet Power of High Standards',
+    'How Winners Handle Silence and Loneliness',
+    'Reprogramming Your Daily Thinking'
+  ],
+  'Relationships / Psychology': [
+    'Signs of High Emotional Intelligence',
+    'How to Set Unshakeable Boundaries',
+    'The Single Biggest Mistake in Communication',
+    'Why Respect Beats Flattery Always',
+    'Building Deep Connection and Loyalty',
+    'How to Handle Toxic People Peacefully',
+    'Control is Not Love: The Psychology'
+  ],
   Relationships: [
     'Signs of High Emotional Intelligence',
     'How to Set Unshakeable Boundaries',
@@ -326,21 +356,29 @@ const fallbackTopicMap = {
     'Building Deep Connection and Loyalty',
     'How to Handle Toxic People Peacefully'
   ],
-  'Life Lessons': [
-    'Lessons Most People Learn Too Late',
-    'The Power of Saying No Gracefully',
-    'Why Time is Your Only True Currency',
-    'Things That Matter Most at the End',
-    'How Mistakes Shape True Character',
-    'Simplicity is the Ultimate Sophistication'
+  'Fitness / Bodybuilding': [
+    'The Only 3 Gym Rules You Actually Need',
+    'Why You Are Not Building Muscle Fast',
+    'How to Burn Fat Without Extreme Dieting',
+    'The 20-Minute Daily Workout That Works',
+    'Mistakes Everyone Makes with Protein',
+    'How to Stay Consistent When Fatigued'
   ],
-  Emotional: [
-    'How to Process Pain and Turn it Into Strength',
-    'The Healing Power of Silence',
-    'Why Vulnerability is True Courage',
-    'Letting Go of What You Cannot Control',
-    'Finding Inner Peace in a Noisy World',
-    'Understanding Your Deepest Emotions'
+  'Crypto / Finance': [
+    'The Bitcoin Secret Wall Street Hides',
+    'How Crypto Market Cycles Actually Work',
+    '3 Crypto Mistakes Beginners Keep Making',
+    'Building a Resilient Long-Term Portfolio',
+    'Why Most Traders Lose Money in Bull Markets',
+    'The Future of Digital Money Explained'
+  ],
+  'Facts / Knowledge': [
+    'Unbelievable Facts Science Cannot Explain',
+    'The Darkest Mysteries of Deep Space',
+    'Historical Events That Sound Made Up',
+    'Psychological Tricks Advertisers Use on You',
+    'Things You Never Knew About Human Evolution',
+    'What Happens to Your Body in Pure Darkness'
   ],
   Discipline: [
     'The 5 AM Rule of Self Control',
@@ -360,10 +398,22 @@ const fallbackTopicMap = {
   ]
 };
 
+function getFallbackTopicsForNiche(niche) {
+  if (fallbackTopicMap[niche]) return fallbackTopicMap[niche];
+  const nicheLower = String(niche || '').toLowerCase();
+
+  for (const [key, topics] of Object.entries(fallbackTopicMap)) {
+    if (nicheLower.includes(key.toLowerCase()) || key.toLowerCase().includes(nicheLower)) {
+      return topics;
+    }
+  }
+  return fallbackTopicMap['Money / Success'] || fallbackTopicMap.Motivation;
+}
+
 export async function generateTopicIdeasWithOllama(niche) {
   const model = getOllamaModel();
   const prompt = `
-Give me 20 viral YouTube Shorts topics in ${niche}.
+Give me 15 viral YouTube Shorts topics in ${niche}.
 Make them curiosity-driven, emotional, highly clickable, short title only.
 Target Indian + global audience.
 
@@ -378,14 +428,14 @@ Return only valid JSON with this exact shape:
     const response = typeof data.response === 'string' ? data.response : JSON.stringify(data.response || {});
     const topics = parseTopicIdeas(response);
 
-    if (topics.length > 0) {
-      return topics.slice(0, 20);
+    if (topics && topics.length > 0) {
+      return topics.slice(0, 15);
     }
   } catch (error) {
     console.warn(`Ollama topic generation warning for niche '${niche}': ${error.message}. Using fallback topic list.`);
   }
 
-  return fallbackTopicMap[niche] || fallbackTopicMap.Motivation;
+  return getFallbackTopicsForNiche(niche);
 }
 
 export async function generateYoutubeMetadataWithOllama(project) {

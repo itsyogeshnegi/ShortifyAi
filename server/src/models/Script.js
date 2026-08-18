@@ -6,7 +6,7 @@ const scriptSchema = new mongoose.Schema(
     topic: { type: String, required: true },
     niche: { type: String, required: true },
     tone: { type: String, required: true },
-    duration: { type: Number, enum: [15, 30, 60], required: true },
+    duration: { type: Number, enum: [15, 30, 45, 60], required: true },
     language: { type: String, required: true },
     themeTemplate: { type: String, default: 'money-success' },
     title: { type: String, required: true },

@@ -6,6 +6,7 @@ import CreateShort from './pages/CreateShort.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import MyVideos from './pages/MyVideos.jsx';
 import Settings from './pages/Settings.jsx';
+import SystemLogs from './pages/SystemLogs.jsx';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/videos" element={<MyVideos />} />
           <Route path="/library" element={<Navigate to="/videos" replace />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/logs" element={<SystemLogs />} />
         </Route>
       </Route>
     </Routes>

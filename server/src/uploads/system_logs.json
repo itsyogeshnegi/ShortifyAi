@@ -1,0 +1,11 @@
+[
+  {
+    "id": "bug-1787071666494-5xour",
+    "timestamp": "2026-08-18T16:47:46.494Z",
+    "formattedTime": "18/8/2026, 10:17:46 pm",
+    "source": "Test Tracker",
+    "message": "Test bug entry to verify system log dashboard",
+    "stack": "Error: Test trace\n    at Test (server.js:1:1)",
+    "metadata": {}
+  }
+]

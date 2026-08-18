@@ -1,15 +1,22 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Clapperboard, LayoutDashboard, Plus, Settings, Video } from 'lucide-react';
+import { Bug, Clapperboard, LayoutDashboard, Plus, Settings, Video } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const links = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { to: '/create', label: 'Create short', icon: Plus },
   { to: '/videos', label: 'Video library', icon: Clapperboard },
-  { to: '/settings', label: 'Settings', icon: Settings }
+  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/logs', label: 'Bugs & Logs', icon: Bug }
 ];
 
-const pageTitles = { '/dashboard': 'Overview', '/create': 'Create short', '/videos': 'Video library', '/settings': 'Settings' };
+const pageTitles = {
+  '/dashboard': 'Overview',
+  '/create': 'Create short',
+  '/videos': 'Video library',
+  '/settings': 'Settings',
+  '/logs': 'System Logs & Bugs'
+};
 
 export default function Shell() {
   const { user } = useAuth();

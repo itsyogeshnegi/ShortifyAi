@@ -7,6 +7,7 @@ import { generateShortVideo } from './videoService.js';
 import { findAndDownloadPexelsBackgrounds } from './pexelsService.js';
 import { createAmbientBed } from './ambientAudioService.js';
 import { getSceneCountForDuration } from './themeTemplateService.js';
+import { recordBug } from '../utils/bugTracker.js';
 
 async function updateProgress(project, stage, percent, message, extra = {}) {
   project.progressStage = stage;
@@ -105,6 +106,12 @@ export async function runGenerationPipeline({ userId, projectId, input }) {
     await project.save();
     return project.populate('script');
   } catch (error) {
+    recordBug({
+      source: 'Generation Pipeline',
+      message: error.message,
+      stack: error.stack,
+      metadata: { topic: input.topic, niche: input.niche, duration: input.duration, language: input.language }
+    });
     project.status = 'failed';
     project.errorMessage = error.message;
     project.progressStage = 'failed';

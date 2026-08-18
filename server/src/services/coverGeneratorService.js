@@ -53,11 +53,125 @@ function parseJsonFromText(text) {
   }
 }
 
-export async function fetchPexelsStockPhoto({ query, index, outputPath }) {
-  const apiKey = process.env.PEXELS_API_KEY || DEFAULT_PEXELS_KEY;
-  const terms = [query, query.split(' ')[0], 'motivation mindset', 'success wealth'];
+export function getDynamicNicheCoverQueries({ topic, niche, title, hook, index = 0 }) {
+  const cleanTopic = String(topic || title || '').replace(/[^\w\s]/g, '').trim();
+  const nicheLower = String(niche || '').toLowerCase();
 
-  for (const term of terms) {
+  // 1. RELATIONSHIPS / DATING / LOVE / PSYCHOLOGY / EMOTIONAL
+  if (
+    nicheLower.includes('relation') ||
+    nicheLower.includes('love') ||
+    nicheLower.includes('dating') ||
+    nicheLower.includes('emotion') ||
+    nicheLower.includes('couple')
+  ) {
+    return [
+      `${cleanTopic} romantic couple intimacy`,
+      `romantic couple aesthetic portrait`,
+      `attractive couple love passion aesthetic`,
+      `couple emotional connection aesthetic`,
+      `couple holding hands romantic sunset`,
+      `dating relationship couple model aesthetic`
+    ];
+  }
+
+  // 2. MONEY / SUCCESS / WEALTH / FINANCE / CRYPTO / BUSINESS / FIRE
+  if (
+    nicheLower.includes('money') ||
+    nicheLower.includes('success') ||
+    nicheLower.includes('wealth') ||
+    nicheLower.includes('finance') ||
+    nicheLower.includes('crypto') ||
+    nicheLower.includes('business')
+  ) {
+    return [
+      `${cleanTopic} luxury lifestyle wealth`,
+      `wealthy successful lifestyle luxury mansion supercar`,
+      `modern businessman executive luxury office skyscraper`,
+      `financial freedom luxury rich lifestyle`,
+      `stock market growth trading chart crypto luxury`,
+      `luxury watch gold cash wealth lifestyle`
+    ];
+  }
+
+  // 3. MOTIVATION / DISCIPLINE / MINDSET / LIFE LESSONS
+  if (
+    nicheLower.includes('motivat') ||
+    nicheLower.includes('mindset') ||
+    nicheLower.includes('discipline') ||
+    nicheLower.includes('lesson')
+  ) {
+    return [
+      `${cleanTopic} focused discipline aesthetic`,
+      `sunrise mountain summit victory success`,
+      `intense focused athlete discipline`,
+      `deep thinker solitary silhouette sunset`,
+      `dark aesthetic stoic statue philosophy mindset`
+    ];
+  }
+
+  // 4. FITNESS / BODYBUILDING / GYM / HEALTH
+  if (
+    nicheLower.includes('fit') ||
+    nicheLower.includes('bodybuild') ||
+    nicheLower.includes('gym') ||
+    nicheLower.includes('workout') ||
+    nicheLower.includes('health')
+  ) {
+    return [
+      `${cleanTopic} gym workout athlete`,
+      `muscular aesthetic fitness training gym`,
+      `intense athlete workout power training`,
+      `athletic fitness model physique aesthetic`,
+      `healthy lifestyle runner sunrise workout`
+    ];
+  }
+
+  // 5. AI / TECH / CODING / FUTURE
+  if (
+    nicheLower.includes('ai') ||
+    nicheLower.includes('tech') ||
+    nicheLower.includes('code') ||
+    nicheLower.includes('cyber') ||
+    nicheLower.includes('future')
+  ) {
+    return [
+      `${cleanTopic} futuristic technology cyber`,
+      `artificial intelligence digital interface holographic`,
+      `futuristic cyber aesthetic data code neon`,
+      `modern technology developer neon workspace`,
+      `robot artificial intelligence humanoid cyber`
+    ];
+  }
+
+  // 6. FACTS / KNOWLEDGE / SCIENCE / HISTORY
+  if (
+    nicheLower.includes('fact') ||
+    nicheLower.includes('know') ||
+    nicheLower.includes('science') ||
+    nicheLower.includes('history')
+  ) {
+    return [
+      `${cleanTopic} documentary cinematic visual`,
+      `mysterious deep cosmos galaxy universe science`,
+      `ancient architecture history mystery`,
+      `fascinating science laboratory discovery concept`
+    ];
+  }
+
+  // 7. DEFAULT / TOPIC DRIVEN
+  return [
+    `${cleanTopic} luxury lifestyle aesthetic`,
+    `${cleanTopic} cinematic high quality aesthetic`,
+    `${cleanTopic} professional high resolution photography`
+  ];
+}
+
+export async function fetchPexelsStockPhoto({ topic, niche, title, hook, index = 0, outputPath }) {
+  const apiKey = process.env.PEXELS_API_KEY || DEFAULT_PEXELS_KEY;
+  const queries = getDynamicNicheCoverQueries({ topic, niche, title, hook, index });
+
+  for (const term of queries) {
     if (!term) continue;
     try {
       const { data } = await axios.get(PEXELS_PHOTO_SEARCH_URL, {
@@ -65,21 +179,24 @@ export async function fetchPexelsStockPhoto({ query, index, outputPath }) {
         params: {
           query: term,
           orientation: 'portrait',
-          per_page: 8
+          per_page: 15
         },
         timeout: 15000
       });
 
-      const photo = data?.photos?.[index % (data?.photos?.length || 1)];
-      const photoUrl = photo?.src?.large2x || photo?.src?.original || photo?.src?.large;
+      const photos = data?.photos || [];
+      if (photos.length > 0) {
+        const photo = photos[index % photos.length];
+        const photoUrl = photo?.src?.large2x || photo?.src?.original || photo?.src?.large;
 
-      if (photoUrl) {
-        const download = await axios.get(photoUrl, { responseType: 'stream', timeout: 30000 });
-        await pipeline(download.data, createWriteStream(outputPath));
-        return true;
+        if (photoUrl) {
+          const download = await axios.get(photoUrl, { responseType: 'stream', timeout: 30000 });
+          await pipeline(download.data, createWriteStream(outputPath));
+          return true;
+        }
       }
     } catch {
-      // Try next search term
+      // Try next niche search query
     }
   }
   return false;
@@ -195,16 +312,16 @@ export async function compositeReelCover({ framePath, headline, style, logo, out
   let filterComplex = '';
 
   if (style === 'viral_hook') {
-    // Style 1: High-Impact Gold & White Bold Typography (Centered in 1:1 Feed View)
+    // Style 1: High-Impact Gold Bold Typography (Bottom-Center Safe Position)
     filterComplex = [
       `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg]`,
-      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=0xFFD700:fontsize=72:line_spacing=24:x=(w-text_w)/2:y=(h-text_h)/2:box=1:boxcolor=black@0.65:boxborderw=32:borderw=4:bordercolor=black[vtxt]`
+      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=0xFFD700:fontsize=72:line_spacing=24:x=(w-text_w)/2:y=h-text_h-60:box=1:boxcolor=black@0.70:boxborderw=32:borderw=4:bordercolor=black[vtxt]`
     ].join(';');
   } else {
-    // Style 2: Ultra-Clean Crisp White Bold Typography (Centered in 1:1 Feed View)
+    // Style 2: Ultra-Clean Crisp White Bold Typography (Bottom-Center Safe Position)
     filterComplex = [
       `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg]`,
-      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=white:fontsize=72:line_spacing=24:x=(w-text_w)/2:y=(h-text_h)/2:box=1:boxcolor=black@0.65:boxborderw=32:borderw=4:bordercolor=black[vtxt]`
+      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=white:fontsize=72:line_spacing=24:x=(w-text_w)/2:y=h-text_h-60:box=1:boxcolor=black@0.70:boxborderw=32:borderw=4:bordercolor=black[vtxt]`
     ].join(';');
   }
 
@@ -250,7 +367,10 @@ export async function generate3ReelCovers(project) {
 
     try {
       const pexelsDownloaded = await fetchPexelsStockPhoto({
-        query,
+        topic: project.topic,
+        niche: project.niche,
+        title: project.title,
+        hook: project.hook,
         index,
         outputPath: framePath
       });

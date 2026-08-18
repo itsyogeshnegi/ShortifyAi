@@ -148,6 +148,7 @@ function splitScriptScenes(fullScript) {
 function sceneCountForDuration(duration) {
   if (Number(duration) === 15) return 3;
   if (Number(duration) === 30) return 5;
+  if (Number(duration) === 45) return 6;
   return 7;
 }
 

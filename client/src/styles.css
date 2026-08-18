@@ -368,8 +368,8 @@ button, input, textarea, select { font: inherit; }
 .form-group { display: grid; min-width: 0; gap: 7px; margin: 0; padding: 0; border: 0; }
 .form-row-heading { display: flex; min-height: 22px; align-items: center; justify-content: space-between; gap: 12px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.segment-control { display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; border: 1px solid var(--border-strong); border-radius: 6px; background: #0d1115; padding: 3px; }
-.segment-control button { min-height: 36px; border-radius: 4px; color: var(--muted); font-size: 11px; font-weight: 650; }
+.segment-control { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--border-strong); border-radius: 6px; background: #0d1115; padding: 3px; gap: 2px; }
+.segment-control button { min-height: 36px; border-radius: 4px; color: var(--muted); font-size: 11px; font-weight: 650; display: flex; align-items: center; justify-content: center; text-align: center; white-space: nowrap; }
 .segment-control button:hover { color: var(--text); }.segment-control button.is-active { background: var(--surface-hover); color: var(--accent); box-shadow: inset 0 0 0 1px var(--border-strong); }
 .idea-list { display: grid; max-height: 260px; gap: 4px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: #0d1115; padding: 5px; }
 .idea-option { border-radius: 4px; padding: 9px 10px; color: var(--muted); font-size: 11px; text-align: left; }.idea-option:hover { background: var(--surface-hover); color: var(--text); }.idea-option.is-selected { background: var(--accent-soft); color: var(--accent); }

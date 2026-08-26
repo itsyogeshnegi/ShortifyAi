@@ -265,21 +265,8 @@ export async function extractVideoFrame({ videoPath, timestamp, outputPath }) {
   ]);
 }
 
-function formatHeadlineForCover(text, maxCharsPerLine = 16) {
-  const words = String(text || '').toUpperCase().trim().split(/\s+/);
-  const lines = [];
-  let current = [];
-
-  for (const word of words) {
-    if ((current.join(' ') + ' ' + word).trim().length <= maxCharsPerLine) {
-      current.push(word);
-    } else {
-      if (current.length) lines.push(current.join(' '));
-      current = [word];
-    }
-  }
-  if (current.length) lines.push(current.join(' '));
-  return lines.slice(0, 2).join('\n');
+function formatHeadlineForCover(text) {
+  return String(text || '').toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
 async function getSystemFontOption() {
@@ -309,19 +296,22 @@ export async function compositeReelCover({ framePath, headline, style, logo, out
   const formattedHeadline = formatHeadlineForCover(cleanHeadline);
   const escapedHeadline = formattedHeadline.replace(/'/g, "'\\\\''").replace(/:/g, '\\:');
 
+  const charLen = cleanHeadline.length;
+  const fontSize = charLen <= 16 ? 74 : charLen <= 22 ? 66 : 58;
+
   let filterComplex = '';
 
   if (style === 'viral_hook') {
-    // Style 1: High-Impact Gold Bold Typography (Bottom-Center Safe Position)
+    // Style 1: High-Impact Gold Bold Typography (Bottom-Center, 30px higher, 1-Line)
     filterComplex = [
       `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg]`,
-      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=0xFFD700:fontsize=72:line_spacing=24:x=(w-text_w)/2:y=h-text_h-60:box=1:boxcolor=black@0.70:boxborderw=32:borderw=4:bordercolor=black[vtxt]`
+      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=0xFFD700:fontsize=${fontSize}:x=(w-text_w)/2:y=h-text_h-90:box=1:boxcolor=black@0.70:boxborderw=28:borderw=4:bordercolor=black[vtxt]`
     ].join(';');
   } else {
-    // Style 2: Ultra-Clean Crisp White Bold Typography (Bottom-Center Safe Position)
+    // Style 2: Ultra-Clean Crisp White Bold Typography (Bottom-Center, 30px higher, 1-Line)
     filterComplex = [
       `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg]`,
-      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=white:fontsize=72:line_spacing=24:x=(w-text_w)/2:y=h-text_h-60:box=1:boxcolor=black@0.70:boxborderw=32:borderw=4:bordercolor=black[vtxt]`
+      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=white:fontsize=${fontSize}:x=(w-text_w)/2:y=h-text_h-90:box=1:boxcolor=black@0.70:boxborderw=28:borderw=4:bordercolor=black[vtxt]`
     ].join(';');
   }
 

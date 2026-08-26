@@ -8,7 +8,7 @@ export function notFound(req, _res, next) {
 
 export function errorHandler(error, req, res, _next) {
   const status = error.statusCode || 500;
-  if (status >= 400) {
+  if (status >= 500 && !req.originalUrl.includes('favicon.ico')) {
     recordBug({
       source: `API (${req.method} ${req.originalUrl})`,
       message: error.message,

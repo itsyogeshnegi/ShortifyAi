@@ -4,6 +4,18 @@ node_modules/
 Thumbs.db
 *.log
 client/dist/
+
+# Database & runtime data
+.data/
+*.wt
+*.lock
+mongod.lock
+system_logs.json
+diagnostic.data/
+journal/
+server/src/uploads/local_mongodb_data/
+
+# Dynamic upload directories
 server/src/uploads/audio/*
 server/src/uploads/temp/*
 server/src/uploads/thumbs/*
@@ -11,7 +23,9 @@ server/src/uploads/videos/*
 server/src/uploads/backgrounds/*
 server/src/uploads/covers/*
 server/src/uploads/mongodb-data/*
+server/src/uploads/local_mongodb_data/*
 server/src/uploads/tokens/*
+server/src/uploads/*.json
 !server/src/uploads/audio/.gitkeep
 !server/src/uploads/temp/.gitkeep
 !server/src/uploads/thumbs/.gitkeep

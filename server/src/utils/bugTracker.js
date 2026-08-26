@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 const MAX_LOGS = 5;
-const logFilePath = path.resolve('src/uploads/system_logs.json');
+const logFilePath = path.resolve('.data/system_logs.json');
 
 function loadLogsFromDisk() {
   try {

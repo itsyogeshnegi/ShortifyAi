@@ -22,6 +22,8 @@ export function createApp() {
   app.use(morgan('dev'));
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 
+  app.get('/favicon.ico', (_req, res) => res.status(204).end());
+
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', service: 'ShortifyAI', storage: 'local' });
   });

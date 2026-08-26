@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Film, Lightbulb, Sparkles } from 'lucide-react';
 import { api } from '../api/http.js';
@@ -32,23 +32,52 @@ export default function CreateShort() {
 
   const handleNicheChange = (niche) => {
     setForm((current) => ({ ...current, niche }));
+    setIdeas([]);
+    setIdeasError('');
   };
 
   const pollProject = async (projectId) => {
     while (projectId) {
-      const { data } = await api.get(`/shorts/${projectId}`);
-      setResult(data);
-      setProgress({
-        percent: data.progressPercent ?? 0,
-        stage: data.progressStage || data.status,
-        message: data.progressMessage || 'Working on your short...'
-      });
+      try {
+        const { data } = await api.get(`/shorts/${projectId}`);
+        setResult(data);
+        setProgress({
+          percent: data.progressPercent ?? 0,
+          stage: data.progressStage || data.status,
+          message: data.progressMessage || 'Working on your short...'
+        });
 
-      if (['completed', 'failed', 'expired'].includes(data.status)) return data;
+        if (['completed', 'failed', 'expired'].includes(data.status)) return data;
+      } catch {
+        // Ignore temporary network errors during polling
+      }
       await sleep(1800);
     }
     return null;
   };
+
+  useEffect(() => {
+    const savedProjectId = localStorage.getItem('shortify_active_project_id');
+    if (savedProjectId) {
+      api.get(`/shorts/${savedProjectId}`).then(({ data }) => {
+        if (data) {
+          setResult(data);
+          setProgress({
+            percent: data.progressPercent ?? (data.status === 'completed' ? 100 : 0),
+            stage: data.progressStage || data.status,
+            message: data.progressMessage || (data.status === 'completed' ? 'Video ready to preview and download.' : 'Working on your short...')
+          });
+
+          if (!['completed', 'failed', 'expired'].includes(data.status)) {
+            setLoading(true);
+            pollProject(data._id).finally(() => setLoading(false));
+          }
+        }
+      }).catch(() => {
+        localStorage.removeItem('shortify_active_project_id');
+      });
+    }
+  }, []);
 
   const generateIdeas = async () => {
     setIdeasLoading(true);
@@ -76,6 +105,7 @@ export default function CreateShort() {
       const payload = { ...form, duration: Number(form.duration) };
       const { data } = await api.post('/shorts/create', payload);
       const project = data.project || data;
+      localStorage.setItem('shortify_active_project_id', project._id);
       setResult(project);
       setProgress({
         percent: project.progressPercent ?? 0,

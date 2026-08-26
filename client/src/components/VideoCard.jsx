@@ -61,7 +61,27 @@ export default function VideoCard({ project, onDeleted }) {
   const [igUploading, setIgUploading] = useState(false);
   const [statusChecking, setStatusChecking] = useState(false);
   const [igStatusChecking, setIgStatusChecking] = useState(false);
-  const [youtubeError, setYoutubeError] = useState('');
+  const [previewCover, setPreviewCover] = useState(null);
+
+  const handleDownloadCover = async (e, relativeUrl, filename = 'reel-cover.jpg') => {
+    if (e) e.stopPropagation();
+    try {
+      const fullUrl = coverUrl(relativeUrl);
+      const res = await fetch(fullUrl);
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = blobUrl;
+      a.download = filename || 'reel-cover.jpg';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(blobUrl);
+      document.body.removeChild(a);
+    } catch {
+      window.open(coverUrl(relativeUrl), '_blank');
+    }
+  };
   const [igError, setIgError] = useState('');
   const [gridPreviewMode, setGridPreviewMode] = useState(false);
   const [selectedCoverUrl, setSelectedCoverUrl] = useState(currentProject.instagram?.selectedCover || '');
@@ -645,26 +665,47 @@ export default function VideoCard({ project, onDeleted }) {
                       return (
                         <div
                           key={cover.id}
-                          className={`relative cursor-pointer overflow-hidden rounded-xl border p-2 transition-all ${
+                          className={`relative overflow-hidden rounded-xl border p-2 transition-all ${
                             isSelected ? 'border-mint bg-mint/15 shadow-lg' : 'border-white/10 bg-black/40 hover:border-white/30'
                           }`}
-                          onClick={() => selectIgCover(cover.url)}
                         >
-                          <div className="aspect-[9/16] overflow-hidden rounded-lg bg-black">
-                            <img className="h-full w-full object-cover" src={coverUrl(cover.url)} alt={cover.label} />
+                          <div
+                            className="aspect-[9/16] overflow-hidden rounded-lg bg-black cursor-pointer group relative"
+                            onClick={() => setPreviewCover(cover)}
+                            title="Click to preview cover full-screen"
+                          >
+                            <img className="h-full w-full object-cover transition duration-200 group-hover:scale-105" src={coverUrl(cover.url)} alt={cover.label} />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                              🔍 Click to Preview
+                            </div>
                           </div>
                           <p className="mt-2 text-center text-xs font-bold text-white truncate">{cover.label}</p>
                           <p className="text-center text-[10px] text-frost/60 line-clamp-1">{cover.headline}</p>
-                          <a
-                            className="btn-muted mt-2 flex w-full items-center justify-center gap-1 text-center text-xs py-1.5 font-medium text-mint hover:text-gold"
-                            href={coverUrl(cover.url)}
-                            download={cover.filename || 'reel-cover.jpg'}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Download size={13} /> Download Cover JPG
-                          </a>
+
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
+                                isSelected ? 'bg-mint text-black font-black' : 'bg-white/10 text-white hover:bg-white/20'
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectIgCover(cover.url);
+                              }}
+                            >
+                              {isSelected ? '✓ Selected' : 'Select'}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn-muted flex items-center justify-center p-1.5 text-xs font-medium text-mint hover:text-gold"
+                              title="Download Cover directly"
+                              onClick={(e) => handleDownloadCover(e, cover.url, cover.filename || `${currentProject.title || 'reel'}-cover.jpg`)}
+                            >
+                              <Download size={14} />
+                            </button>
+                          </div>
+
                           {isSelected && (
                             <span className="absolute top-3 right-3 rounded-full bg-mint p-1 text-black font-bold text-[10px]">
                               ✓ Selected
@@ -733,6 +774,64 @@ export default function VideoCard({ project, onDeleted }) {
                 type="button"
               >
                 {igUploading || currentProject.instagram?.status === 'uploading' ? 'Publishing to Instagram Reel...' : 'Publish Reel to Instagram'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* High-Resolution Cover Lightbox Modal Popup */}
+      {previewCover && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md transition-all"
+          onClick={() => setPreviewCover(null)}
+        >
+          <div
+            className="relative flex max-h-[92vh] max-w-sm w-full flex-col items-center overflow-hidden rounded-2xl border border-white/15 bg-[#0e131a] p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex w-full items-center justify-between pb-2.5 mb-2.5 border-b border-white/10">
+              <div className="min-w-0 pr-2">
+                <h4 className="font-bold text-white text-sm truncate">{previewCover.label || 'Reel Cover Preview'}</h4>
+                <p className="text-[11px] text-frost/60 truncate">{previewCover.headline || currentProject.title}</p>
+              </div>
+              <button
+                type="button"
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-white hover:bg-white/20 transition flex-shrink-0"
+                onClick={() => setPreviewCover(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* High-Res Image Frame */}
+            <div className="relative aspect-[9/16] w-full max-h-[60vh] overflow-hidden rounded-xl bg-black border border-white/10 shadow-lg">
+              <img
+                src={coverUrl(previewCover.url)}
+                alt={previewCover.label}
+                className="h-full w-full object-cover"
+              />
+            </div>
+
+            {/* Actions Footer */}
+            <div className="mt-3.5 flex w-full flex-col gap-2">
+              <button
+                type="button"
+                className="btn-primary w-full py-2 text-xs font-bold flex items-center justify-center gap-1.5"
+                onClick={() => {
+                  selectIgCover(previewCover.url);
+                  setPreviewCover(null);
+                }}
+              >
+                ✓ Set As Selected Reel Cover
+              </button>
+              <button
+                type="button"
+                className="btn-muted w-full py-2 text-xs font-bold text-mint hover:text-gold flex items-center justify-center gap-1.5"
+                onClick={(e) => handleDownloadCover(e, previewCover.url, previewCover.filename || `${currentProject.title || 'reel'}-cover.jpg`)}
+              >
+                <Download size={14} /> Download Cover JPG
               </button>
             </div>
           </div>

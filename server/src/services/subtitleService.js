@@ -65,6 +65,16 @@ function buildSubtitleTimeline(scriptText, duration) {
   });
 }
 
+function formatAestheticChunk(text, maxWordsPerLine = 4) {
+  const words = String(text || '').trim().split(/\s+/);
+  if (words.length <= maxWordsPerLine) return words.join(' ');
+  const lines = [];
+  for (let i = 0; i < words.length; i += maxWordsPerLine) {
+    lines.push(words.slice(i, i + maxWordsPerLine).join(' '));
+  }
+  return lines.join('\\N');
+}
+
 export async function createSubtitleFile(scriptText, duration, title, timedTimeline = []) {
   const filename = `${Date.now()}-${slugify(title || 'captions', { lower: true, strict: true })}.ass`;
   const outputPath = path.join(storageDirs.temp, filename);
@@ -72,7 +82,8 @@ export async function createSubtitleFile(scriptText, duration, title, timedTimel
 
   const body = timeline
     .map((chunk) => {
-      return `Dialogue: 0,${timestamp(chunk.start)},${timestamp(chunk.end)},Default,,0,0,0,,${escapeAss(chunk.text)}`;
+      const formatted = formatAestheticChunk(chunk.text, 4);
+      return `Dialogue: 0,${timestamp(chunk.start)},${timestamp(chunk.end)},Default,,0,0,0,,${escapeAss(formatted)}`;
     })
     .join('\n');
 

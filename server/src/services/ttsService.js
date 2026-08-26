@@ -200,14 +200,15 @@ async function generateSarvamVoice(speechText, title, language) {
   const isHindi = containsDevanagari || langLower.includes('hindi') || langLower.startsWith('hi');
 
   const langCode = isHindi ? 'hi-IN' : 'en-IN';
-  const speaker = isHindi ? (process.env.SARVAM_SPEAKER_HI || 'shubh') : (process.env.SARVAM_SPEAKER_EN || 'tarun');
-  const pace = Number(process.env.SARVAM_PACE || 0.90);
+  const speaker = process.env.SARVAM_SPEAKER || (isHindi ? (process.env.SARVAM_SPEAKER_HI || 'sumit') : (process.env.SARVAM_SPEAKER_EN || 'sumit'));
+  const pace = Number(process.env.SARVAM_PACE || 1.0);
+  const speechSampleRate = Number(process.env.SARVAM_SAMPLE_RATE || 22050);
 
   const cacheDir = path.join(storageDirs.audio, 'sarvam_cache');
   await fs.mkdir(cacheDir, { recursive: true });
 
   const normalizedKey = cleanSpeechText.toLowerCase().replace(/[^\w\u0900-\u097F]/g, '');
-  const hashKey = crypto.createHash('md5').update(`${normalizedKey}_${speaker}_${model}_${langCode}_${pace}`).digest('hex');
+  const hashKey = crypto.createHash('md5').update(`${normalizedKey}_${speaker}_${model}_${langCode}_${pace}_${speechSampleRate}`).digest('hex');
   const cacheFilePath = path.join(cacheDir, `${hashKey}.wav`);
   const basename = `${Date.now()}-${slugify(title || 'short-audio', { lower: true, strict: true })}.wav`;
   const outputPath = path.join(storageDirs.audio, basename);
@@ -223,7 +224,7 @@ async function generateSarvamVoice(speechText, title, language) {
     // Cache miss - proceed to single API hit
   }
 
-  console.log(`[Sarvam AI] Making single API hit to Sarvam AI TTS (${model}, speaker: ${speaker}, lang: ${langCode}, pace: ${pace})...`);
+  console.log(`[Sarvam AI] Making single API hit to Sarvam AI TTS (${model}, speaker: ${speaker}, lang: ${langCode}, pace: ${pace}, sampleRate: ${speechSampleRate})...`);
 
   const client = new SarvamAIClient({
     apiSubscriptionKey: apiKey
@@ -235,7 +236,7 @@ async function generateSarvamVoice(speechText, title, language) {
     speaker,
     model,
     pace,
-    speech_sample_rate: 22050
+    speech_sample_rate: speechSampleRate
   });
 
   const base64Audio = response.audios?.[0];

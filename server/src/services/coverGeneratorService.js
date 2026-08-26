@@ -302,16 +302,16 @@ export async function compositeReelCover({ framePath, headline, style, logo, out
   let filterComplex = '';
 
   if (style === 'viral_hook') {
-    // Style 1: High-Impact Gold Bold Typography (Bottom-Center, 30px higher, 1-Line)
+    // Style 1: High-Impact Gold Bold Typography (Center View, 1-Line)
     filterComplex = [
       `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg]`,
-      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=0xFFD700:fontsize=${fontSize}:x=(w-text_w)/2:y=h-text_h-90:box=1:boxcolor=black@0.70:boxborderw=28:borderw=4:bordercolor=black[vtxt]`
+      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=0xFFD700:fontsize=${fontSize}:x=(w-text_w)/2:y=(h-text_h)/2:box=1:boxcolor=black@0.70:boxborderw=28:borderw=4:bordercolor=black[vtxt]`
     ].join(';');
   } else {
-    // Style 2: Ultra-Clean Crisp White Bold Typography (Bottom-Center, 30px higher, 1-Line)
+    // Style 2: Ultra-Clean Crisp White Bold Typography (Center View, 1-Line)
     filterComplex = [
       `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg]`,
-      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=white:fontsize=${fontSize}:x=(w-text_w)/2:y=h-text_h-90:box=1:boxcolor=black@0.70:boxborderw=28:borderw=4:bordercolor=black[vtxt]`
+      `[bg]drawtext=text='${escapedHeadline}'${fontOpt}:fontcolor=white:fontsize=${fontSize}:x=(w-text_w)/2:y=(h-text_h)/2:box=1:boxcolor=black@0.70:boxborderw=28:borderw=4:bordercolor=black[vtxt]`
     ].join(';');
   }
 
